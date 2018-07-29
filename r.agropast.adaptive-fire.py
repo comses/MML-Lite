@@ -1099,15 +1099,16 @@ def main():
             totlabor = numpeople * aglabor
             maxfields = int(round(totlabor / fieldlabor))
         ########## NICK EDIT HERE ################
+        # Calculate natural (lightning-caused) fire ignition on the landscape
         # some pseudo codes here using fire probablity map 'fireprob', assuming coded 0, 1, 2, 3 for no, low, medium, high probability
         # parse fire probability map into three with mapcalc:
-        # "lowprobmap"=if(${fireprob}) <= 1, 1, null()) 
-        # "medprobmap"=if(${fireprob}) == 2, 1, null())
-        # "hiprobmap"=if(${fireprob}) >= 3, 1, null())
+        grass.mapcalc("lowprobmap"=if(${fireprob}) <= 1, 1, null())
+        grass.mapcalc("medprobmap"=if(${fireprob}) == 2, 1, null())
+        grass.mapcalc("hiprobmap"=if(${fireprob}) >= 3, 1, null()))
         # randomly sample each of these maps at different densities (find out actual densities from Grant):
         # r.random, input="lowprobmap", raster="fires1", npoints=5%
-        # r.random, input="medprobmap", raster="fires2", npoints=10%  
-        # r.random, input="hiprobmap", raster="fires3", npoints=15% 
+        # r.random, input="medprobmap", raster="fires2", npoints=10%
+        # r.random, input="hiprobmap", raster="fires3", npoints=15%
         # patch those back to make final map of fire locations
         # r.patch, input="fires1,fires2,fires3", output="final fire map name"
         # clean up interim fire maps with g.remove
