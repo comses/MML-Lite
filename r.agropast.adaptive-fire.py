@@ -1099,15 +1099,16 @@ def main():
             totlabor = numpeople * aglabor
             maxfields = int(round(totlabor / fieldlabor))
         ########## NICK EDIT HERE ################
+        # Calculate natural (lightning-caused) fire ignition on the landscape
         # some pseudo codes here using fire probablity map 'fireprob', assuming coded 0, 1, 2, 3 for no, low, medium, high probability
         # parse fire probability map into three with mapcalc:
-        # "lowprobmap"=if(${fireprob}) <= 1, 1, null()) 
-        # "medprobmap"=if(${fireprob}) == 2, 1, null())
-        # "hiprobmap"=if(${fireprob}) >= 3, 1, null())
+        grass.mapcalc("lowprobmap"=if(${fireprob}) <= 1, 1, null())
+        grass.mapcalc("medprobmap"=if(${fireprob}) == 2, 1, null())
+        grass.mapcalc("hiprobmap"=if(${fireprob}) >= 3, 1, null()))
         # randomly sample each of these maps at different densities (find out actual densities from Grant):
         # r.random, input="lowprobmap", raster="fires1", npoints=5%
-        # r.random, input="medprobmap", raster="fires2", npoints=10%  
-        # r.random, input="hiprobmap", raster="fires3", npoints=15% 
+        # r.random, input="medprobmap", raster="fires2", npoints=10%
+        # r.random, input="hiprobmap", raster="fires3", npoints=15%
         # patch those back to make final map of fire locations
         # r.patch, input="fires1,fires2,fires3", output="final fire map name"
         # clean up interim fire maps with g.remove
@@ -1135,10 +1136,9 @@ def main():
         growthrate = "%stemporary_vegetation_regrowth_map" % pid
         grass.mapcalc('${growthrate}=eval(x=if(${sdepth} <= 1.0, ( -0.000118528 * (exp((100*${sdepth}),2.0))) + (0.0215056 * (100*${sdepth})) + 0.0237987, 1), y=if(${precip} <= 1.0, ( -0.000118528 * (exp((100*${precip}),2.0))) + (0.0215056 * (100*${precip})) + 0.0237987, 1), z=(-0.000118528 * (exp(${outfert},2.0))) + (0.0215056 * ${outfert}) + 0.0237987, a=if(x <= 0 || z <= 0, 0, (x+y+z)/3), if(a < 0, 0, a) )', quiet = "True", growthrate = growthrate,  sdepth = oldsdepth, outfert = outfert, precip = precip)
         #Calculate this year's landcover impacts and regrowth
-                ########## NICK EDIT HERE ################
-                # Edit the mapcalc statement on the next line to incorporate the changes due to fire. Basically, if there was a fire, vegetation goes to 0 no matter what was there.
         grass.mapcalc("${outlcov}=eval(a=if(${oldlcov} - ${grazeimpacts} + ${growthrate} >= 0, ${oldlcov} - ${grazeimpacts} + ${growthrate}, 0) , b=if(isnull(${fields}), a, ${farmval}), if(${oldlcov} < (${maxlcov} - ${growthrate}) && isnull(b), ${oldlcov} + ${growthrate}, if(isnull(b), ${maxlcov}, b) ))", quiet = "True", outlcov = outlcov, oldlcov = oldlcov, maxlcov = maxlcov, growthrate = growthrate, fields = fields, farmval = farmval, grazeimpacts = grazeimpacts)
-                ########## NICK STOP HERE ################
+        #If there was a fire, vegetation goes to 0 no matter what was there.
+        grass.mapcalc("${outlcov}=if(isnull(${natural_fires}), ${outlcov}, 0)", quiet = "True", overwrite = "True", outlcov = outlcov, natural_fires = natural_fires)
         #Make a rainfall excess map to send to r.landcape.evol. This is a logarithmic regression (R^2=0.99.) for the data pairs: 0,90;3,85;8,70;13,60;19,45;38,30;50,20. These are the same succession cutoffs that are used in the c-factor coding.
         grass.mapcalc("${outxs}=193.522 - (42.3272 * log(${lcov} + 10.9718))", quiet = "True", outxs = outxs, lcov = outlcov)
         #if rules set exists, create reclassed landcover labels map
