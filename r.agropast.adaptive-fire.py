@@ -784,6 +784,7 @@ def main():
         outcfact = "%s_Year_%s_Cfactor_Map" % (prfx, now)
         grazeimpacts = "%s_Year_%s_Gazing_Impacts_Map" % (prfx, now)
         outxs = "%s_Year_%s_Rainfall_Excess_Map" % (prfx, now)
+	natural_fires = "%s_Year_%s_Natural_Fires_map" % (prfx, now)
         #check if this is year one, use the starting landcover and soilfertily and calculate soildepths
         if (year + 1) == 1:
             oldlcov = inlcov
@@ -1098,7 +1099,7 @@ def main():
             fodderreq = indfodreq * fodder_anim
             totlabor = numpeople * aglabor
             maxfields = int(round(totlabor / fieldlabor))
-        ########## NICK EDIT HERE ################
+
         # Calculate natural (lightning-caused) fire ignition on the landscape
         # some pseudo codes here using fire probablity map 'fireprob', assuming coded 0, 1, 2, 3 for no, low, medium, high probability
         # parse fire probability map into three with mapcalc:
@@ -1106,13 +1107,14 @@ def main():
         grass.mapcalc("medprobmap"=if(${fireprob}) == 2, 1, null())
         grass.mapcalc("hiprobmap"=if(${fireprob}) >= 3, 1, null()))
         # randomly sample each of these maps at different densities (find out actual densities from Grant):
-        # r.random, input="lowprobmap", raster="fires1", npoints=5%
-        # r.random, input="medprobmap", raster="fires2", npoints=10%
-        # r.random, input="hiprobmap", raster="fires3", npoints=15%
+        grass.run_command('r.random', quiet = 'True', input="lowprobmap", raster="fires1", npoints=5%)
+        grass.run_command('r.random', quiet = 'True', input="medprobmap", raster="fires2", npoints=10%)
+        grass.run_command('r.random', quiet = 'True', input="hiprobmap", raster="fires3", npoints=15%)
         # patch those back to make final map of fire locations
-        # r.patch, input="fires1,fires2,fires3", output="final fire map name"
+        grass.run_command('r.patch', input="fires1,fires2,fires3", output=natural_fires)
         # clean up interim fire maps with g.remove
-        ########## NICK STOP HERE ################
+        grass.run_command('g.remove', quiet = "True", flags = 'f', type = "rast", name = 'lowprobmap,medprobmap,hiprobmap,fires1,fires2,fires3')
+
         #write the yield stats to the stats file
         grass.message('Writing some farming and grazing stats from this year....')
         f = open(textout3, 'a')
