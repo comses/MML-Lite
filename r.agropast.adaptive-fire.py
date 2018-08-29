@@ -319,7 +319,7 @@
 #% key: fireprob
 #% type: string
 #% gisprompt: old,cell,raster
-#% description: Map of fire probabilities due to natural lightning strikes 
+#% description: Map of fire probabilities due to natural lightning strikes (coded 0 to 1)
 #% guisection: Landcover Dynamics
 #%END
 #%option
@@ -784,7 +784,7 @@ def main():
         outcfact = "%s_Year_%s_Cfactor_Map" % (prfx, now)
         grazeimpacts = "%s_Year_%s_Gazing_Impacts_Map" % (prfx, now)
         outxs = "%s_Year_%s_Rainfall_Excess_Map" % (prfx, now)
-	natural_fires = "%s_Year_%s_Natural_Fires_map" % (prfx, now)
+        natural_fires = "%s_Year_%s_Natural_Fires_map" % (prfx, now)
         #check if this is year one, use the starting landcover and soilfertily and calculate soildepths
         if (year + 1) == 1:
             oldlcov = inlcov
@@ -1099,22 +1099,24 @@ def main():
             fodderreq = indfodreq * fodder_anim
             totlabor = numpeople * aglabor
             maxfields = int(round(totlabor / fieldlabor))
-
         # Calculate natural (lightning-caused) fire ignition on the landscape
-        # some pseudo codes here using fire probablity map 'fireprob', assuming coded 0, 1, 2, 3 for no, low, medium, high probability
         # parse fire probability map into three with mapcalc:
-        grass.mapcalc("lowprobmap"=if(${fireprob}) <= 1, 1, null())
-        grass.mapcalc("medprobmap"=if(${fireprob}) == 2, 1, null())
-        grass.mapcalc("hiprobmap"=if(${fireprob}) >= 3, 1, null()))
+        lowprobmap = "%stemp_fireprob_low" % pid
+        medprobmap = "%stemp_fireprob_med" % pid
+        hiprobmap = "%stemp_fireprob_hi" % pid
+        # Hardcoding cutoffs for no, low, medium, high probability based on histogram of spanish fire probability map.
+        grass.mapcalc("${lowprobmap}=if(${fireprob} <= 0.2, 1, null())", quiet = "True", fireprob=fireprob, lowprobmap=lowprobmap)
+        grass.mapcalc("${medprobmap}=if(${fireprob} > 0.2 || ${fireprob} <= 0.6, 1, null())", quiet = "True", fireprob=fireprob, medprobmap=medprobmap)
+        grass.mapcalc("${hiprobmap}=if(${fireprob} > 0.6, 1, null())", quiet = "True", fireprob=fireprob, hiprobmap=hiprobmap)
         # randomly sample each of these maps at different densities (find out actual densities from Grant):
-        grass.run_command('r.random', quiet = 'True', input="lowprobmap", raster="fires1", npoints=5%)
-        grass.run_command('r.random', quiet = 'True', input="medprobmap", raster="fires2", npoints=10%)
-        grass.run_command('r.random', quiet = 'True', input="hiprobmap", raster="fires3", npoints=15%)
+        fires1 = "%sfires_low" % pid
+        fires2 = "%sfires_med" % pid
+        fires3 = "%sfires_hi" % pid
+        grass.run_command('r.random', quiet = 'True', input="lowprobmap", raster=fires1, npoints="5%")
+        grass.run_command('r.random', quiet = 'True', input="medprobmap", raster=fires2, npoints="10%")
+        grass.run_command('r.random', quiet = 'True', input="hiprobmap", raster=fires3, npoints="15%")
         # patch those back to make final map of fire locations
         grass.run_command('r.patch', input="fires1,fires2,fires3", output=natural_fires)
-        # clean up interim fire maps with g.remove
-        grass.run_command('g.remove', quiet = "True", flags = 'f', type = "rast", name = 'lowprobmap,medprobmap,hiprobmap,fires1,fires2,fires3')
-
         #write the yield stats to the stats file
         grass.message('Writing some farming and grazing stats from this year....')
         f = open(textout3, 'a')
@@ -1186,10 +1188,12 @@ def main():
         grass.mapcalc("MASK=if(isnull(${agcatch}), null(), 1)", quiet = "True", overwrite = "True", agcatch = agcatch)
         fertstats = grass.parse_command('r.univar', flags = 'ge', percentile = '90', map = outfert)
         grass.run_command('g.remove', quiet = "True", flags = "f", type = "rast", name = "MASK")
+        #grab some fire stats
+        firestats = grass.parse_command('r.univar', flags = 'ge', percentile = '90', map = natural_fires)
         f = open(textout4, 'a')
         if os.path.getsize(textout4) == 0:
-            f.write("Landcover and Soil Fertility Stats\nNote that these stats are collected within the grazing catchment (landcover) and agricultural catchment (fertility) ONLY. Rest of the map is ignored.\n\n,,Basic Stats,,,,Extended Stats\nYear,,Mean Landcover,Standard Deviation Landcover,Mean Soil Fertility,Standard Deviation Soil Fertility,,Minimum Landcover,First Quartile Landcover,Median Landcover,Third Quartile Landcover,Maximum Landcover,,Minimum Soil Fertility,First Quartile Soil Fertility,Median Soil Fertility,Third Quartile Soil Fertility,Maximum Soil Fertility")
-        f.write('\n%s' % now + ',,' + lcovstats['mean'] + ',' + lcovstats['stddev'] + ',' + fertstats['mean'] + ',' + fertstats['stddev'] + ',,' + lcovstats['max'] + ',' + lcovstats['third_quartile'] + ',' + lcovstats['median'] + ',' + lcovstats['first_quartile'] + ',' + lcovstats['min'] + ',,' + fertstats['min'] + ',' + fertstats['first_quartile'] + ',' + fertstats['median'] + ',' + fertstats['third_quartile'] + ',' + fertstats['max'])
+            f.write("Landcover, Fire, and Soil Fertility Stats\nNote that Land cover stats are collected within the grazing catchment and fertility stats in the agricultural catchment (fertility) ONLY. Fire stats are collected across the whole map. \n\n,,Basic Stats,,,,Extended Stats\nYear,,Mean Landcover,Standard Deviation Landcover,Mean Soil Fertility,Standard Deviation Soil Fertility,,Minimum Landcover,First Quartile Landcover,Median Landcover,Third Quartile Landcover,Maximum Landcover,,Minimum Soil Fertility,First Quartile Soil Fertility,Median Soil Fertility,Third Quartile Soil Fertility,Maximum Soil Fertility")
+        f.write('\n%s' % now + ',,' + lcovstats['mean'] + ',' + firestats['stddev'] + ',,' + firestats['mean'] + ',' + firestats['stddev'] + ',' + fertstats['mean'] + ',' + fertstats['stddev'] + ',,' + lcovstats['max'] + ',' + lcovstats['third_quartile'] + ',' + lcovstats['median'] + ',' + lcovstats['first_quartile'] + ',' + lcovstats['min'] + ',,' + fertstats['min'] + ',' + fertstats['first_quartile'] + ',' + fertstats['median'] + ',' + fertstats['third_quartile'] + ',' + fertstats['max'])
         #creating c-factor map
         grass.message('Creating C-factor map for r.landscape.evol')
         try:
