@@ -30,6 +30,7 @@
 
 #%Module
 #%  description: Simulates natural fires for input into landscape evolution simulation
+#%End
 
 ##################################
 #Simulation Control
@@ -379,7 +380,7 @@ def main():
     pid = os.getpid()
     #we need to separate out flags used by this script, and those meant to be sent to r.landscape.evol. We will do this by popping them out of the default "flags" dictionary, and making a new dictionary called "use_flags"
     use_flags = {}
-    use_flags.update({'g': flags.pop('g'), 'f': flags.pop('f'), 'c': flags.pop('c'), 'p': flags.pop('p')})
+    use_flags.update({'c': flags.pop('c')})
     #now assemble the flag string for r.landscape.evol'
     levol_flags = []
     for flag in flags:
@@ -447,18 +448,18 @@ def main():
         fires1 = "%sfires_low" % pid
         fires2 = "%sfires_med" % pid
         fires3 = "%sfires_hi" % pid
-        grass.run_command('r.random', quiet = 'True', input="lowprobmap", raster=fires1, npoints="5%")
-        grass.run_command('r.random', quiet = 'True', input="medprobmap", raster=fires2, npoints="10%")
-        grass.run_command('r.random', quiet = 'True', input="hiprobmap", raster=fires3, npoints="15%")
+        grass.run_command('r.random', quiet = 'True', input=lowprobmap, raster=fires1, npoints="5%")
+        grass.run_command('r.random', quiet = 'True', input=medprobmap, raster=fires2, npoints="10%")
+        grass.run_command('r.random', quiet = 'True', input=hiprobmap, raster=fires3, npoints="15%")
         # patch those back to make final map of fire locations
-        grass.run_command('r.patch', input="fires1,fires2,fires3", output=natural_fires)
+        grass.run_command('r.patch', input="%s,%s,%s" % (fires1,fires2,fires3), output=natural_fires)
         #update landcover
         # calculating rate of regrowth based on current soil fertility, spil depths, and precipitation. Recoding fertility (0 to 100%), depth (0 to >= 1m), and precip (0 to >= 1000mm) with a power regression curve from 0 to 1, then taking the mean of the two as the regrowth rate
         growthrate = "%stemporary_vegetation_regrowth_map" % pid
         grass.mapcalc('${growthrate}=eval(x=if(${sdepth} <= 1.0, ( -0.000118528 * (exp((100*${sdepth}),2.0))) + (0.0215056 * (100*${sdepth})) + 0.0237987, 1), y=if(${precip} <= 1.0, ( -0.000118528 * (exp((100*${precip}),2.0))) + (0.0215056 * (100*${precip})) + 0.0237987, 1), z=(-0.000118528 * (exp(${outfert},2.0))) + (0.0215056 * ${outfert}) + 0.0237987, a=if(x <= 0 || z <= 0, 0, (x+y+z)/3), if(a < 0, 0, a) )', quiet = "True", growthrate = growthrate,  sdepth = oldsdepth, outfert = infert, precip = precip)
         #Calculate this year's landcover impacts and regrowth
         #If there was a fire, vegetation goes to 0 no matter what was there, otherwise regrow at calculated rate.
-        grass.mapcalc("${outlcov}=eval(a=if(${oldlcov} + ${growthrate} >= ${maxlcov}, ${maxlcov}, ${oldlandcov} + ${growthrate}), b=if(isnull(${natural_fires}), a, 0))", quiet = "True", overwrite = "True", outlcov = outlcov, oldlcov=oldlcov, growthrate=growthrate, natural_fires = natural_fires)
+        grass.mapcalc("${outlcov}=eval(a=if(${oldlcov} + ${growthrate} >= ${maxlcov}, ${maxlcov}, ${oldlcov} + ${growthrate}), b=if(isnull(${natural_fires}), a, 0))", quiet = "True", overwrite = "True", outlcov = outlcov, oldlcov=oldlcov, growthrate=growthrate, maxlcov=maxlcov, natural_fires = natural_fires)
         #Make a rainfall excess map to send to r.landcape.evol. This is a logarithmic regression (R^2=0.99.) for the data pairs: 0,90;3,85;8,70;13,60;19,45;38,30;50,20. These are the same succession cutoffs that are used in the c-factor coding.
         grass.mapcalc("${outxs}=193.522 - (42.3272 * log(${lcov} + 10.9718))", quiet = "True", outxs = outxs, lcov = outlcov)
         #if rules set exists, create reclassed landcover labels map
@@ -524,3 +525,4 @@ if __name__ == "__main__":
     options, flags = grass.parser()
     main()
     exit(0)
+

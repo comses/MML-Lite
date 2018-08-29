@@ -1112,11 +1112,11 @@ def main():
         fires1 = "%sfires_low" % pid
         fires2 = "%sfires_med" % pid
         fires3 = "%sfires_hi" % pid
-        grass.run_command('r.random', quiet = 'True', input="lowprobmap", raster=fires1, npoints="5%")
-        grass.run_command('r.random', quiet = 'True', input="medprobmap", raster=fires2, npoints="10%")
-        grass.run_command('r.random', quiet = 'True', input="hiprobmap", raster=fires3, npoints="15%")
+        grass.run_command('r.random', quiet = 'True', input=lowprobmap, raster=fires1, npoints="5%")
+        grass.run_command('r.random', quiet = 'True', input=medprobmap, raster=fires2, npoints="10%")
+        grass.run_command('r.random', quiet = 'True', input=hiprobmap, raster=fires3, npoints="15%")
         # patch those back to make final map of fire locations
-        grass.run_command('r.patch', input="fires1,fires2,fires3", output=natural_fires)
+        grass.run_command('r.patch', input="%s,%s,%s" % (fires1,fires2,fires3), output=natural_fires)
         #write the yield stats to the stats file
         grass.message('Writing some farming and grazing stats from this year....')
         f = open(textout3, 'a')
