@@ -888,7 +888,7 @@ def main():
                     tenuredcells = int(float(tenuredstats['cells']) - float(tenuredstats['null_cells']))
                     catchmentstats = grass.parse_command('r.univar', flags = 'ge', map = agcatch)
                     catchmentcells = int(float(catchmentstats['cells']) - float(catchmentstats['null_cells']))
-                    if newcells + tenured cells >= catchmentcells:
+                    if newcells + tenuredcells >= catchmentcells:
                         tempfields = tenuredfields
                         grass.message("Agricultural catchment is fully used up, can't add new fields.")
                     else:
