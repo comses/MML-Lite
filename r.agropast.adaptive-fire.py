@@ -886,12 +886,18 @@ def main():
                     grass.mapcalc("${tenuredfields}=if(isnull(${oldfields}), null(), 1)", quiet = True, oldfields = oldfields, tenuredfields = tenuredfields) # copy last year's fields forward as tenured
                     tenuredstats = grass.parse_command('r.univar', flags = 'ge', map = oldtenure)
                     tenuredcells = int(float(tenuredstats['cells']) - float(tenuredstats['null_cells']))
-                    #Now run r.random to get the required number of additional fields
-                    tempfields1 = "%stemporary_extra_fields_map" % pid
-                    grass.run_command('r.random', quiet = 'True', input = tempagcatch, npoints = newcells, raster = tempfields1)
-                    #patch the new fields into the old fields
-                    grass.run_command('r.patch', quiet = "True", input = "%s,%s" % (tempfields1,oldtenure), output = tempfields)
-                    grass.message("Keeping %s fields in tenure list, adding %s new fields" % (tenuredcells, newcells))
+                    catchmentstats = grass.parse_command('r.univar', flags = 'ge', map = agcatch)
+                    catchmentcells = int(float(catchmentstats['cells']) - float(catchmentstats['null_cells']))
+                    if newcells + tenured cells >= catchmentcells:
+                        tempfields = tenuredfields
+                        grass.message("Agricultural catchment is fully used up, can't add new fields.")
+                    else:
+                        #Now run r.random to get the required number of additional fields
+                        tempfields1 = "%stemporary_extra_fields_map" % pid
+                        grass.run_command('r.random', quiet = 'True', input = tempagcatch, npoints = newcells, raster = tempfields1)
+                        #patch the new fields into the old fields
+                        grass.run_command('r.patch', quiet = "True", input = "%s,%s" % (tempfields1,oldtenure), output = tempfields)
+                        grass.message("Keeping %s fields in tenure list, adding %s new fields" % (tenuredcells, newcells))
         elif tenuretype == "Satisfice":
             grass.message("Land Tenure is ON, with SATSFICING strategy")
             #check for first year, and zero out tenure if so
@@ -971,7 +977,8 @@ def main():
         grass.message("Calculating potential grazing yields")
         #generate basic impact values
         tempimpactg = "%stemporary_grazing_impact" % pid
-        grass.run_command("r.random.surface", quiet = "True", output = tempimpactg, distance = grazespatial, exponent = grazepatchy, high = maxgrazeimpact)
+        #grass.run_command("r.random.surface", quiet = "True", output = tempimpactg, distance = grazespatial, exponent = grazepatchy, high = maxgrazeimpact)
+        grass.run_command("r.surf.random", quiet = "True", output = tempimpactg, min=1, max=maxgrazeimpact)
         #Calculate temporary grazing yield map in kg/ha
         tempgrazereturnha = "%stemporary_hectares_grazing_returns_map" % pid
         tempgrazereturn = "%stemporary_grazing_returns_map" % pid
