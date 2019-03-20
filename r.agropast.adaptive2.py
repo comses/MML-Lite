@@ -1458,7 +1458,7 @@ def main():
         else:
             inelev = "%sElevation_Map0001" % (p)
         try:
-            grass.run_command('r.landscape.evol2, quiet = True, number = 1, prefx = options["prefx"], c = outcfact, elev = inelev, initbdrk = initbdrk, outdem = "Elevation_Map", outsoil = "Soil_Depth_Map", r = r, k = k, sdensity = sdensity, kappa = kappa, manningn = manningn, flowcontrib = outxs, cutoff1 = cutoff1, cutoff2 = cutoff2, cutoff3 = cutoff3, rain = rain, storms = storms, stormlength = stormlength, speed = speed, kt = kt, loadexp = loadexp, smoothing = smoothing, statsout = statsout, flags = ''.join(levol_flags))
+            grass.run_command('r.landscape.evol2', quiet = True, number = 1, prefx = options["prefx"], c = outcfact, elev = inelev, initbdrk = initbdrk, outdem = "Elevation_Map", outsoil = "Soil_Depth_Map", r = r, k = k, sdensity = sdensity, kappa = kappa, manningn = manningn, flowcontrib = outxs, cutoff1 = cutoff1, cutoff2 = cutoff2, cutoff3 = cutoff3, rain = rain, storms = storms, stormlength = stormlength, speed = speed, kt = kt, loadexp = loadexp, smoothing = smoothing, statsout = statsout, flags = ''.join(levol_flags))
         except:
             grass.fatal("Something is wrong with the values you sent to r.landscape.evol. Did you forget something? Check the values and try again...\nSimulation terminated with an error at time step %s" % o)
             sys.exit(1)
