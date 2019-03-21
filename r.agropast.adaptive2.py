@@ -574,8 +574,6 @@ def main():
     maxwheat = options['maxwheat']
     maxbarley = options['maxbarley']
     mingraze = options['mingraze']
-    tenuretype = options['tenuretype']
-    tenuredrop = options['tenuredrop']
     costsurf = options['costsurf']
     agmix = options['agmix']
     numpeople = float(options['numpeople'])
@@ -683,7 +681,7 @@ def main():
         if len(stormlength2) != int(years):
             grass.fatal("Number of rows of storm length data in your climate file\n do not match the number of iterations you wish to run.\n Please ensure that these numbers match and try again")
             sys.exit(1)
-            
+
     # Get the process id to tag any temporary maps we make for easy clean up in the loop
     pid = os.getpid()
 
@@ -793,7 +791,6 @@ def main():
         # needs these variables: precip, sfertil, sdepth, maxwheat, maxbarley, fieldsperhectare, agmix, agcatch, farmyieldmemory, cerealstats2, fuzzydeficitmemory, agentmem, cerealreq, maxfields
         # produces these variables: tempfields, tempimpacta, tempwheatreturn, tempbarleyreturn, tempcerealreturn, cerealstats2, fuzzyyieldmemory, fuzzydeficitmemory, slicer, numfields, fieldpad
 
-#FARM IMPACTS COULD BE A SEPARATE METHOD
         # ***GENERATE FARM IMPACTS***
         # Create some temp map names
         tempfields = "%stemporary_fields_map" % pid
@@ -806,7 +803,6 @@ def main():
         # Generate the yields
         grass.message("Calculating potential farming yields.....")
 
-#WHEAT AND BARLEY CAN RUN IN PARALLEL
         # Calculate the wheat yield map (kg/cell)
         tempwheatreturn = "%stemporary_wheat_yields_map" % pid
         e = '''${tempwheatreturn} = eval(x = if(${precip} > 0, (0.51*log(${precip}))+1.03, 0), \
@@ -814,7 +810,7 @@ def main():
                                          z = if(${sdepth} > 0, (0.19*log(${sdepth}))+1, 0), \
                                          a = if(x <= 0 || z <= 0, 0, ((((x*y*z)/3)*${maxwheat})/${fieldsperhectare})), \
                                          if(a < 0, 0, a))'''
-        grass.mapcalc(e,  quiet = True,
+        twr = grass.mapcalc_start (e,  quiet = True,
                       tempwheatreturn = tempwheatreturn,
                       precip = precip,
                       sfertil = oldfert,
@@ -829,13 +825,15 @@ def main():
                                           z = if(${sdepth} > 0, (0.18*log(${sdepth}))+0.98, 0), \
                                           a = if(x <= 0 || z <= 0, 0, ((((x*y*z)/3)*${maxbarley})/${fieldsperhectare})), \
                                           if(a < 0, 0, a))'''
-        grass.mapcalc(e, quiet = True,
+        tbr = grass.mapcalc_start(e, quiet = True,
                       tempbarleyreturn = tempbarleyreturn,
                       precip = precip,
                       sfertil = oldfert,
                       sdepth = oldsdepth,
                       maxbarley = maxbarley,
                       fieldsperhectare = fieldsperhectare)
+
+        twr.wait(), tbr.wait()
 
         # Create the desired cereal mix
         tempcerealreturn = "%stemporary_cereal_yields_map" %pid
@@ -894,160 +892,18 @@ def main():
             numfields = maxfields
         grass.debug("did numfields hit the max and be curtailed? %s" % numfields)
 
-        # Do land tenure method
-        # landTenure():
-        # Needs these variables: tenuretype, agcatch, npoints, tempfields, numfields
-        # Produces these variables: tenuredfields, tenuredcells, droppedcells, newcells, oldfields, oldtenure, tenuredfields, tempcomparefields, tempagcatch, tenuredstats
-
-#MAYBE MAKE TENURE A SEPARATE METHOD
-        # Check for tenure, and do the appropriate type of tenure if asked
-#GIVE THIS VARIABLE A DIFFERENT NAME LIKE USESTRATEGY OR SOMETHING.
-
-
+        # Do landuse strategy method
         if m == 0:
-            grass.run_command('r.random', quiet = True, input = agcatch, npoints = numfields, raster = tempfields)
-            grass.message('First year, so %s fields randomly assigned' % numfields)
             tenuredcells = numfields
-            droppedcells = 0
-            newcells = 0
-        else:
-            # Make some map names
-            oldfields = "%sFarming_Impacts_Map%04d" % (p, m)
-            tenuredfields = "%sTenured_Fields_Map%04d" % (p, o)
-            tempcomparefields = "%stemporary_Old_Fields_yield_map" % pid
-            tempagcatch = "%stemporary_agricultural_catchment_map" % pid
-            grass.message('Performing yearly land tenure evaluation')
 
-            # Make a map of the current potential yields from the old fields
-            e = '''${tempcomparefields} = if(isnull(${oldfields}), null(), ${tempcerealreturn} )'''
-            grass.mapcalc(e, quiet = True,
-                          tempcomparefields = tempcomparefields,
-                          oldfields = oldfields,
-                          tempcerealreturn = tempcerealreturn)
-
-            # Grab stats from the old fields
-            oldfieldstats = grass.parse_command('r.univar', flags = 'ge', map = tempcomparefields)
-
-        if tenuretype == "Maximize":
-            grass.message("Land Tenure is ON, with MAXIMIZING strategy")
-
-            # Check for first year, and zero out tenure if so
-            if m == 0:
-                tenuredfields = "%sTenured_Fields_Map%04d" % (p, o)
-                grass.run_command('g.copy', quiet = True, raster = "%s,%s" % (tempfields,tenuredfields))
-            else:
-                # Make some map names
-                oldtenure = "%sTenured_Fields_Map%04d" % (p, m)
-
-                # # TODO: temporarily update the agricultural catchment by withholding last year's fields. All other cells in the catchment will be fair game to be chosen for the new fields.
-                e = '''${tempagcatch} = if(isnull(${agcatch}), null(), if(isnull(${oldfields}), ${agcatch}, null() ))'''
-                grass.mapcalc(e, quiet = True,
-                              tempagcatch = tempagcatch,
-                              agcatch = agcatch,
-                              oldfields = oldfields)
-
-                newcells = numfields-tenuredcells #find out the difference between what we have and what we need
-                if newcells <= 0: #negative number, so we drop any underperforming fields)
-                    # Check the comparison metric and drop underperforming
-                    # fields compared to average yield...
-                    if tenuredrop == 0: #drop threshold is 0, so compare to mean yield of all fields
-                        e = '''${tenuredfields} = if(${tempcomparefields} < (${meanyield}), null(), 1)'''
-                        grass.mapcalc(e, quiet = True,
-                                      tenuredfields=tenuredfields,
-                                      tempcomparefields = tempcomparefields,
-                                      meanyield = oldfieldstats['mean'])
-
-                    else: # Drop threshold is above zero, so use it to compare
-                          # to the maximum yeild.
-                        e = '''${tenuredfields} = if(${tempcomparefields} < ${maxyield}-(${maxyield}*${tenuredrop}), null(), 1)'''
-                        grass.mapcalc(e, quiet = True,
-                                      tenuredfields=tenuredfields,
-                                      tempcomparefields = tempcomparefields,
-                                      maxyield = oldfieldstats['max'],
-                                      tenuredrop = tenuredrop)
-
-                    # Pull stats out to see what we did (how many old fields
-                    # kept, how many dropped, and how many new ones we need
-                    # this year
-                    tenuredstats = grass.parse_command('r.univar', flags = 'ge', map = tenuredfields)
-                    tenuredcells = int(float(tenuredstats['cells']) - float(tenuredstats['null_cells']))
-                    droppedcells = int(float(oldfieldstats['cells']) - float(oldfieldstats['null_cells'])) - tenuredcells
-                    tempfields = tenuredfields
-                    grass.message("Keeping %s fields in tenure list, dropping %s underperforming fields" % (tenuredcells, droppedcells))
-
-                else: #positive number, so add fields
-                    # Copy last year's fields forward as tenured
-                    e = '''${tenuredfields} = if(isnull(${oldfields}), null(), 1)'''
-                    grass.mapcalc(e, quiet = True,
-                                  oldfields = oldfields,
-                                  tenuredfields = tenuredfields)
-
-                    tenuredstats = grass.parse_command('r.univar', flags = 'ge', map = oldtenure)
-                    tenuredcells = int(float(tenuredstats['cells']) - float(tenuredstats['null_cells']))
-
-                    # Now run r.random to get the required number of additional fields
-                    tempfields1 = "%stemporary_extra_fields_map" % pid
-                    grass.run_command('r.random', quiet = True, input = tempagcatch, npoints = newcells, raster = tempfields1)
-
-                    # Patch the new fields into the old fields
-                    grass.run_command('r.patch', quiet = True, input = "%s,%s" % (tempfields1,oldtenure), output = tempfields)
-                    grass.message("Keeping %s fields in tenure list, adding %s new fields" % (tenuredcells, newcells))
-
-        elif tenuretype == "Satisfice":
-            grass.message("Land Tenure is ON, with SATSFICING strategy")
-
-            # Make map of tenured fields for this year
-            e = '''${tenuredfields}=if(isnull(${oldfields}), null(), 1)'''
-            grass.mapcalc(e, quiet = True,
-                          tenuredfields=tenuredfields,
-                          oldfields = oldfields)
-
-            # Temporarily update the agricultural catchment by withholding
-            # tenured cells. All other cells in the catchment will be fair game
-            # to be chosen for the new fields.
-            e = '''${tempagcatch} = if(isnull(${agcatch}), null(), if(isnull(${tenuredfields}), ${agcatch}, null() ))'''
-            grass.mapcalc(e, quiet = True,
-                          tempagcatch = tempagcatch,
-                          agcatch = agcatch,
-                          tenuredfields = tenuredfields)
-
-            # Pull stats out to see what we did (how many old fields kept, how
-            # many dropped, and how many new ones we need this year
-            tenuredstats = grass.parse_command('r.univar', flags = 'ge', map = tenuredfields)
-            tenuredcells = int(float(tenuredstats['cells']) - float(tenuredstats['null_cells']))
-            droppedcells = 0
-            newcells = numfields-tenuredcells #find out the difference between what we have and what we need
-            if newcells <= 0: #negative number, so we need to drop some fields.
-                # Now run r.random to randomly select fields to drop
-                tempfields1 = "%stemporary_dropped_fields_map" % pid
-                grass.run_command('r.random', quiet = True, input = tenuredfields, npoints = 1-newcells, raster = tempfields1)
-
-                # Remove the new fields from the tenured fields map
-                grass.mapcalc("${tempfields}=if(isnull(${tenuredfields}), null(), if(isnull(${tempfields1}), 1, null()))", quiet = True, tempfields = tempfields, tempfields1 = tempfields1, tenuredfields = tenuredfields)
-                grass.message("Dropping %s excess fields" % (1-newcells))
-
-            else: #positive number, so add fields
-                # Now run r.random to get the required number of additional fields
-                tempfields1 = "%stemporary_extra_fields_map" % pid
-                grass.run_command('r.random', quiet = True, input = tempagcatch, npoints = newcells, raster = tempfields1)
-
-                # Patch the new fields into the old fields
-                grass.run_command('r.patch', quiet = True, input = "%s,%s" % (tempfields1,tenuredfields), output = tempfields)
-                grass.message("Adding %s new fields" % (newcells))
-        else:
-            grass.message("Land Tenure is OFF")
-            tenuredcells = 0
-            droppedcells = 0
-            newcells = 0
-
-            # Now run r.random to get the required number of fields
-            grass.run_command('r.random', quiet = True, input = agcatch, npoints = numfields, raster = tempfields)
-
-###### end of landtenure routines
-
+        tenuredcells, droppedcells, newcells, tempfields = luStrategy(m, o, p, pid, tempfields, numfields, tenuredcells, tempcerealreturn)
 
         # Use r.surf.gaussian to cacluate fertily impacts in the farmed areas
-        grass.run_command('r.surf.gauss', quiet = True, output = tempimpacta, mean = farmimpact[0], sigma = farmimpact[1])
+        grass.run_command('r.surf.gauss', quiet = True,
+                                          output = tempimpacta,
+                                          mean = farmimpact[0],
+                                          sigma = farmimpact[1])
+
         e = '''${fields} = if(isnull(${tempfields}), null(), ${tempimpacta})'''
         grass.mapcalc(e, quiet = True,
                       fields = fields,
@@ -1099,21 +955,35 @@ def main():
         grass.del_temp_region()
         grass.message('We farmed %s fields, using %.2f percent of agcatch...' % (numfarmcells,agpercent))
 
-#GRAZING IMPACTS COULD BE A SEPARATE METHOD
         #GENERATE GRAZING IMPACTS
         grass.message("Calculating potential grazing yields")
 
         #generate basic impact values
         tempimpactg = "%stemporary_grazing_impact" % pid
-        grass.run_command("r.random.surface", quiet = True, output = tempimpactg, distance = grazespatial, exponent = grazepatchy, high = maxgrazeimpact)
+        rrs = grass.start_command("r.random.surface", quiet = True,
+                                              output = tempimpactg,
+                                              distance = grazespatial,
+                                              exponent = grazepatchy,
+                                              high = maxgrazeimpact)
 
         # Calculate temporary grazing yield map in kg/ha
         tempgrazereturnha = "%stemporary_hectares_grazing_returns_map" % pid
         tempgrazereturn = "%stemporary_grazing_returns_map" % pid
-        grass.run_command('r.recode', quiet = True, flags = 'da', input = oldlcov, output = tempgrazereturnha, rules = fodder_rules)
+        rr = grass.start_command('r.recode', quiet = True,
+                                      flags = 'da',
+                                      input = oldlcov,
+                                      output = tempgrazereturnha,
+                                      rules = fodder_rules)
+
+        rrs.wait(), rr.wait()
 
         # Convert to kg / cell, and adjust to impacts
-        grass.mapcalc("${tempgrazereturn}=(${tempgrazereturnha}/${cellperhectare}) * ${tempimpactg}", quiet = True, tempgrazereturn = tempgrazereturn, tempgrazereturnha = tempgrazereturnha, cellperhectare = cellperhectare, tempimpactg = tempimpactg)
+        e = '''${tempgrazereturn} = (${tempgrazereturnha}/${cellperhectare}) * ${tempimpactg}'''
+        grass.mapcalc(e, quiet = True,
+                      tempgrazereturn = tempgrazereturn,
+                      tempgrazereturnha = tempgrazereturnha,
+                      cellperhectare = cellperhectare,
+                      tempimpactg = tempimpactg)
 
         grass.message('Figuring out grazing plans for this year....')
         # Do we graze on the stubble of agricultural fields? If so, how much
@@ -1143,7 +1013,7 @@ def main():
                                           rules = fodder_rules)
 
             # Match the variability in stubble yields to that in cereal returns, and convert to yields per field
-            e = '''${stubfod3}=(${stubfod2} / ${fieldsperhectare}) * (${tempcerealreturn}/${maxcereals})'''
+            e = '''${stubfod3} = (${stubfod2} / ${fieldsperhectare}) * (${tempcerealreturn}/${maxcereals})'''
             grass.mapcalc(e, quiet = True,
                           stubfod3 = stubfod3,
                           stubfod2 = stubfod2,
@@ -1181,9 +1051,19 @@ def main():
         # Do we graze on the "fallowed" portions of the agricultural catchment?
         tempgrazecatch = "%stemporary_grazing_catchment_map" % pid
         if use_flags['f'] is True:
-            grass.mapcalc("${tempgrazecatch}=if(isnull(${grazecatch}), null(), if(isnull(${agcatch}), ${tempgrazereturn}, null()))", quiet = True, tempgrazecatch = tempgrazecatch, grazecatch = grazecatch, agcatch = agcatch, tempgrazereturn = tempgrazereturn)
+            e = '''${tempgrazecatch} = if(isnull(${grazecatch}), null(), if(isnull(${agcatch}), ${tempgrazereturn}, null()))'''
+            grass.mapcalc(e, quiet = True,
+                          tempgrazecatch = tempgrazecatch,
+                          grazecatch = grazecatch,
+                          agcatch = agcatch,
+                          tempgrazereturn = tempgrazereturn)
         else:
-            grass.mapcalc("${tempgrazecatch}=if(isnull(${grazecatch}), null(), if(isnull(${fields}), ${tempgrazereturn}, null()))", quiet = True, tempgrazecatch = tempgrazecatch, grazecatch = grazecatch, fields = fields, tempgrazereturn = tempgrazereturn)
+            e = '''${tempgrazecatch}=if(isnull(${grazecatch}), null(), if(isnull(${fields}), ${tempgrazereturn}, null()))'''
+            grass.mapcalc(e, quiet = True,
+                          tempgrazecatch = tempgrazecatch,
+                          grazecatch = grazecatch,
+                          fields = fields,
+                          tempgrazereturn = tempgrazereturn)
 
         # Now that we know where we are allowed to graze, how much of the
         # grazing catchment does the agent think it needs to meet its remaining
@@ -1243,6 +1123,7 @@ def main():
             # with vegetation too low to graze on), and iterate through it to
             # figure out the actual grazing area to be used this year
             tempgrazecost = "%stemporary_grazing_cost_map" % pid
+
             e = '''${tempgrazecost}=if(isnull(${tempgrazecatch}), null(),if(${oldlcov} <= ${mingraze}, null(), ${costsurf}))'''
             grass.mapcalc(e, quiet = True,
                           tempgrazecatch = tempgrazecatch,
@@ -1283,6 +1164,7 @@ def main():
         else:
             # First make a temporary "zone" map for the grazed areas in which to run r.univar
             tempgrazezone = "%stemporary_grazing_zones_map" % pid
+
             e = '''${tempgrazezone}=if(isnull(${grazeimpacts}), null(), ${tempgrazereturn})'''
             grass.mapcalc(e, quiet = True,
                           tempgrazezone = tempgrazezone,
@@ -1336,25 +1218,44 @@ def main():
 
         # Calculate natural (lightning-caused) fire ignition on the landscape
         # by parsing fire probability map into three with mapcalc:
+
 #WHY NOT USE ORIGINAL PROBABILITIES???
         if len(fireprob) > 0:
             lowprobmap = "%stemp_fireprob_low" % pid
             medprobmap = "%stemp_fireprob_med" % pid
             hiprobmap = "%stemp_fireprob_hi" % pid
             # Hardcoding cutoffs for no, low, medium, high probability based on histogram of spanish fire probability map.
-            grass.mapcalc("${lowprobmap}=if(${fireprob} <= 0.2, 1, null())", quiet = "True", fireprob=fireprob, lowprobmap=lowprobmap)
-            grass.mapcalc("${medprobmap}=if(${fireprob} > 0.2 || ${fireprob} <= 0.6, 1, null())", quiet = "True", fireprob=fireprob, medprobmap=medprobmap)
-            grass.mapcalc("${hiprobmap}=if(${fireprob} > 0.6, 1, null())", quiet = "True", fireprob=fireprob, hiprobmap=hiprobmap)
-            # randomly sample each of these maps at different densities (find out actual densities from Grant):
+            e = '''${lowprobmap} = if(${fireprob} <= 0.2, 1, null())'''
+            lpm = grass.mapcalc_start(e, quiet = "True",
+                          fireprob=fireprob,
+                          lowprobmap=lowprobmap)
+
+            e = '''${medprobmap} = if(${fireprob} > 0.2 || ${fireprob} <= 0.6, 1, null())'''
+            mpm = grass.mapcalc_start(e, quiet = True,
+                          fireprob=fireprob,
+                          medprobmap=medprobmap)
+
+            e = '''${hiprobmap}=if(${fireprob} > 0.6, 1, null())'''
+            hpm = grass.mapcalc_start(e, quiet = True,
+                          fireprob=fireprob,
+                          hiprobmap=hiprobmap)
+
+            lpm.wait(), mpm.wait(), hpm.wait()
+
+            # Randomly sample each of these maps at different densities (find out actual densities from Grant):
             fires1 = "%sfires_low" % pid
             fires2 = "%sfires_med" % pid
             fires3 = "%sfires_hi" % pid
-            grass.run_command('r.random', quiet = 'True', input=lowprobmap, raster=fires1, npoints="5%")
-            grass.run_command('r.random', quiet = 'True', input=medprobmap, raster=fires2, npoints="10%")
-            grass.run_command('r.random', quiet = 'True', input=hiprobmap, raster=fires3, npoints="15%")
-            # patch those back to make final map of fire locations
+
+            lpp = grass.start_command('r.random', quiet = 'True', input=lowprobmap, raster=fires1, npoints="5%")
+            mpp = grass.start_command('r.random', quiet = 'True', input=medprobmap, raster=fires2, npoints="10%")
+            hpp = grass.start_command('r.random', quiet = 'True', input=hiprobmap, raster=fires3, npoints="15%")
+
+            lpp.wait(), mpp.wait(), hpmpwait()
+
+            # Patch those back to make final map of fire locations
             grass.run_command('r.patch', input="%s,%s,%s" % (fires1,fires2,fires3), output=natural_fires)
-            #grab some fire stats
+            # Grab some fire stats
             firestats = grass.parse_command('r.univar', flags = 'ge', percentile = '90', map = natural_fires)
 
         # Write the yield stats to the stats file
@@ -1375,9 +1276,33 @@ def main():
 
         # Figure out what happened to fertility (see if stubble-grazing is enabled, and make sure to add some manure where grazing occured, scaled to the degree of graing that happened)
         if use_flags['g'] is False:
-            grass.mapcalc("${outfert}=eval(a=if(isnull(${grazeimpacts}) && isnull(${fields}), ${tempfertil}, ${tempfertil} + (${manurerate} * ${tempimpactg})), b=if(isnull(${fields}), ${oldfert}, ${oldfert} - ${fields}), c=if(b <= ${maxfert} - a, b + a, ${maxfert}), if(c < 0, 0, c))", quiet = True, outfert = outfert, oldfert = oldfert, fields = fields, tempimpactg = tempimpactg, grazeimpacts = grazeimpacts, manurerate = manurerate, maxfert = maxfert, tempfertil = tempfertil)
+            e = '''${outfert} = eval(a = if(isnull(${grazeimpacts}) && isnull(${fields}), ${tempfertil}, ${tempfertil} + (${manurerate} * ${tempimpactg})), \
+                                     b = if(isnull(${fields}), ${oldfert}, ${oldfert} - ${fields}), \
+                                     c = if(b <= ${maxfert} - a, b + a, ${maxfert}), if(c < 0, 0, c))'''
+            grass.mapcalc(e, quiet = True,
+                          outfert = outfert,
+                          oldfert = oldfert,
+                          fields = fields,
+                          tempimpactg = tempimpactg,
+                          grazeimpacts = grazeimpacts,
+                          manurerate = manurerate,
+                          maxfert = maxfert,
+                          tempfertil = tempfertil)
+
         else:
-            grass.mapcalc("${outfert}=eval(a=if(isnull(${grazeimpacts}), ${tempfertil}, ${tempfertil} + (${manurerate} * ${tempimpactg})), b=if(isnull(${fields}), ${oldfert}, ${oldfert} - ${fields}), if(b <= ${maxfert} - a, b + a, ${maxfert}))", quiet = True, outfert = outfert, oldfert = oldfert, fields = fields, tempimpactg = tempimpactg, grazeimpacts = grazeimpacts, manurerate = manurerate, maxfert = maxfert, tempfertil = tempfertil)
+            e = '''${outfert} = eval(a = if(isnull(${grazeimpacts}), ${tempfertil}, ${tempfertil} + (${manurerate} * ${tempimpactg})), \
+                                     b = if(isnull(${fields}), ${oldfert}, ${oldfert} - ${fields}), \
+                                     if(b <= ${maxfert} - a, b + a, ${maxfert}))'''
+            grass.mapcalc(e, quiet = True,
+                          outfert = outfert,
+                          oldfert = oldfert,
+                          fields = fields,
+                          tempimpactg =
+                          tempimpactg,
+                          grazeimpacts = grazeimpacts,
+                          manurerate = manurerate,
+                          maxfert = maxfert,
+                          tempfertil = tempfertil)
 
         fertcolors = ['0 white', '20 grey', '40 yellow', '60 orange', '80 brown', '100 black']
         fc = grass.feed_command('r.colors', quiet = True, map = outfert, rules = "-")
@@ -1387,23 +1312,60 @@ def main():
         # Update landcover
         # Calculating rate of regrowth based on current soil fertility, spil depths, and precipitation. Recoding fertility (0 to 100%), depth (0 to >= 1m), and precip (0 to >= 1000mm) with a power regression curve from 0 to 1, then taking the mean of the two as the regrowth rate
         growthrate = "%stemporary_vegetation_regrowth_map" % pid
-        grass.mapcalc('${growthrate}=eval(x=if(${sdepth} <= 1.0, ( -0.000118528 * (exp((100*${sdepth}),2.0))) + (0.0215056 * (100*${sdepth})) + 0.0237987, 1), y=if(${precip} <= 1.0, ( -0.000118528 * (exp((100*${precip}),2.0))) + (0.0215056 * (100*${precip})) + 0.0237987, 1), z=(-0.000118528 * (exp(${outfert},2.0))) + (0.0215056 * ${outfert}) + 0.0237987, a=if(x <= 0 || z <= 0, 0, (x+y+z)/3), if(a < 0, 0, a) )', quiet = True, growthrate = growthrate,  sdepth = oldsdepth, outfert = outfert, precip = precip)
+
+        e = '''${growthrate} = eval(x = if(${sdepth} <= 1.0, (-0.000118528 * (exp((100*${sdepth}),2.0))) + (0.0215056 * (100*${sdepth})) + 0.0237987, 1), \
+                                    y = if(${precip} <= 1.0, ( -0.000118528 * (exp((100*${precip}),2.0))) + (0.0215056 * (100*${precip})) + 0.0237987, 1), \
+                                    z = (-0.000118528 * (exp(${outfert},2.0))) + (0.0215056 * ${outfert}) + 0.0237987, \
+                                    a = if(x <= 0 || z <= 0, 0, (x+y+z)/3), if(a < 0, 0, a) )'''
+        grass.mapcalc(e, quiet = True,
+                      growthrate = growthrate,
+                      sdepth = oldsdepth,
+                      outfert = outfert,
+                      precip = precip)
 
         # Calculate this year's landcover impacts and regrowth
-        grass.mapcalc("${outlcov}=eval(a=if(${oldlcov} - ${grazeimpacts} + ${growthrate} >= 0, ${oldlcov} - ${grazeimpacts} + ${growthrate}, 0) , b=if(isnull(${fields}), a, ${farmval}), if(${oldlcov} < (${maxlcov} - ${growthrate}) && isnull(b), ${oldlcov} + ${growthrate}, if(isnull(b), ${maxlcov}, b) ))", quiet = True, outlcov = outlcov, oldlcov = oldlcov, maxlcov = maxlcov, growthrate = growthrate, fields = fields, farmval = farmval, grazeimpacts = grazeimpacts)
+        e = '''${outlcov} = eval(a = if(${oldlcov} - ${grazeimpacts} + ${growthrate} >= 0, ${oldlcov} - ${grazeimpacts} + ${growthrate}, 0) , \
+                                 b = if(isnull(${fields}), a, ${farmval}), \
+                                 if(${oldlcov} < (${maxlcov} - ${growthrate}) && isnull(b), ${oldlcov} + ${growthrate}, if(isnull(b), ${maxlcov}, b) ))'''
+        grass.mapcalc(e, quiet = True,
+                      outlcov = outlcov,
+                      oldlcov = oldlcov,
+                      maxlcov = maxlcov,
+                      growthrate = growthrate,
+                      fields = fields,
+                      farmval = farmval,
+                      grazeimpacts = grazeimpacts)
 
         if len(fireprob) > 0:
             #If there was a fire, vegetation goes to 0 no matter what was there.
-            grass.mapcalc("${outlcov}=if(isnull(${natural_fires}), ${outlcov}, 0)", quiet = "True", overwrite = "True", outlcov = outlcov, natural_fires = natural_fires)
+            e = '''${outlcov} = if(isnull(${natural_fires}), ${outlcov}, 0)'''
+            grass.mapcalc(e, quiet = "True", overwrite = True,
+                          outlcov = outlcov,
+                          natural_fires = natural_fires)
 
-        # Make a rainfall excess map to send to r.landcape.evol. This is a logarithmic regression (R^2=0.99.) for the data pairs: 0,90;3,85;8,70;13,60;19,45;38,30;50,20. These are the same succession cutoffs that are used in the c-factor coding.
-        grass.mapcalc("${outxs}=193.522 - (42.3272 * log(${lcov} + 10.9718))", quiet = True, outxs = outxs, lcov = outlcov)
+        # Make a rainfall excess map to send to r.landcape.evol. This is a
+        # logarithmic regression (R^2=0.99.) for the data
+        # pairs: 0,90;3,85;8,70;13,60;19,45;38,30;50,20. These are the same
+        # succession cutoffs that are used in the c-factor coding.
+        e = '''${outxs} = 193.522 - (42.3272 * log(${lcov} + 10.9718))'''
+        grass.mapcalc(e, quiet = True,
+                      outxs = outxs,
+                      lcov = outlcov)
 
         # If rules set exists, create reclassed landcover labels map
         try:
+#SEEMS LIKE THERE SHOULD BE A BETTER WAY TO DO THIS
+
             temp_reclass = "%stemporary_reclassed_landcover" %pid
-            grass.run_command('r.reclass', quiet = True,  input = outlcov,  output = temp_reclass,  rules = lc_rules)
-            grass.mapcalc('${out}=${input}', quiet = True, overwrite = True, out = outlcov, input = temp_reclass)
+            grass.run_command('r.reclass', quiet = True,
+                                           input = outlcov,
+                                           output = temp_reclass,
+                                           rules = lc_rules)
+
+            grass.mapcalc('${out} = ${input}', quiet = True,
+                                             overwrite = True,
+                                             out = outlcov,
+                                             input = temp_reclass)
         except:
             grass.warning("No landcover labling rules found at path \"%s\"\nOutput landcover map will not have text labels in queries" % lc_rules)
 
@@ -1426,6 +1388,7 @@ def main():
                 f.write("0,")
         f.write("\n")
         f.close()
+
         f = open(textout2, 'a')
         if os.path.getsize(textout2) == 0:
             f.write("Temporal Matrix of Soil Fertility\n\nYear," + ",".join(str(i) for i in range(maxfertval + 1)) + "\n")
@@ -1440,13 +1403,24 @@ def main():
         f.close()
 
         # Collect and write univariate stats
-        grass.mapcalc("MASK=if(isnull(${grazecatch}), null(), 1)", quiet = True, overwrite = True, grazecatch = grazecatch)
+        e = '''MASK = if(isnull(${grazecatch}), null(), 1)'''
+        grass.mapcalc(e, quiet = True,
+                      overwrite = True,
+                      grazecatch = grazecatch)
+
         lcovstats = grass.parse_command('r.univar', flags = 'ge', percentile = '90', map = outlcov)
+
         grass.run_command('g.remove', quiet = True, flags = "f", type = "rast", name = "MASK")
 
-        grass.mapcalc("MASK=if(isnull(${agcatch}), null(), 1)", quiet = True, overwrite = True, agcatch = agcatch)
+        e = '''MASK = if(isnull(${agcatch}), null(), 1)'''
+        grass.mapcalc(e, quiet = True,
+                      overwrite = True,
+                      agcatch = agcatch)
+
         fertstats = grass.parse_command('r.univar', flags = 'ge', percentile = '90', map = outfert)
+
         grass.run_command('g.remove', quiet = True, flags = "f", type = "rast", name = "MASK")
+
         f = open(textout4, 'a')
         if len(fireprob) > 0:
             if os.path.getsize(textout4) == 0:
@@ -1457,7 +1431,7 @@ def main():
                 f.write("Landcover and Soil Fertility Stats\nNote that these stats are collected within the grazing catchment (landcover) and agricultural catchment (fertility) ONLY. Rest of the map is ignored.\n\n,,Basic Stats,,,,Extended Stats\nYear,,Mean Landcover,Standard Deviation Landcover,Mean Soil Fertility,Standard Deviation Soil Fertility,,Minimum Landcover,First Quartile Landcover,Median Landcover,Third Quartile Landcover,Maximum Landcover,,Minimum Soil Fertility,First Quartile Soil Fertility,Median Soil Fertility,Third Quartile Soil Fertility,Maximum Soil Fertility")
             f.write('\n%s' % o + ',,' + lcovstats['mean'] + ',' + lcovstats['stddev'] + ',' + fertstats['mean'] + ',' + fertstats['stddev'] + ',,' + lcovstats['max'] + ',' + lcovstats['third_quartile'] + ',' + lcovstats['median'] + ',' + lcovstats['first_quartile'] + ',' + lcovstats['min'] + ',,' + fertstats['min'] + ',' + fertstats['first_quartile'] + ',' + fertstats['median'] + ',' + fertstats['third_quartile'] + ',' + fertstats['max'])
 
-        #creating c-factor map
+        # Creating c-factor map
         grass.message('Creating C-factor map for r.landscape.evol')
         try:
             grass.run_command('r.recode', quiet = True, input = outlcov, output = outcfact, rules = cfact_rules)
@@ -1483,6 +1457,155 @@ def main():
         grass.message('Completed year %s of the simulation' % o)
 
     return(grass.message(".........................SIMULATION COMPLETE...........................\nCheck in the current mapset for farming/grazing yields, landcover, fertility, and erosion/depostion stats files from this run."))
+
+
+#GIVE VARIABLE tenuretype A DIFFERENT NAME LIKE USESTRATEGY OR SOMETHING?
+
+def luStrategy(m, o, p, pid, tempfields, numfields, tenuredcells, tempcerealreturn):
+    # Check for tenure, and do the appropriate type of tenure if asked
+    tenuretype = options["tenuretype"]
+    tenuredrop = options["tenuredrop"]
+    agcatch    = options["agcatch"]
+
+    if m == 0:
+        grass.run_command('r.random', quiet = True, input = agcatch, npoints = numfields, raster = tempfields)
+        grass.message('First year, so %s fields randomly assigned' % numfields)
+        droppedcells = 0
+        newcells = 0
+    else:
+        # Make some map names
+        oldfields = "%sFarming_Impacts_Map%04d" % (p, m)
+        tenuredfields = "%sTenured_Fields_Map%04d" % (p, o)
+        tempcomparefields = "%stemporary_Old_Fields_yield_map" % pid
+        tempagcatch = "%stemporary_agricultural_catchment_map" % pid
+        grass.message('Performing yearly land tenure evaluation')
+
+        # Make a map of the current potential yields from the old fields
+        e = '''${tempcomparefields} = if(isnull(${oldfields}), null(), ${tempcerealreturn} )'''
+        grass.mapcalc(e, quiet = True,
+                      tempcomparefields = tempcomparefields,
+                      oldfields = oldfields,
+                      tempcerealreturn = tempcerealreturn)
+
+        # Grab stats from the old fields
+        oldfieldstats = grass.parse_command('r.univar', flags = 'ge', map = tempcomparefields)
+
+    if tenuretype == "Maximize":
+        grass.message("Land Tenure is ON, with MAXIMIZING strategy")
+
+        # Check for first year, and zero out tenure if so
+        if m == 0:
+            tenuredfields = "%sTenured_Fields_Map%04d" % (p, o)
+            grass.run_command('g.copy', quiet = True, raster = "%s,%s" % (tempfields,tenuredfields))
+        else:
+            # Make some map names
+            oldtenure = "%sTenured_Fields_Map%04d" % (p, m)
+
+            # # TODO: temporarily update the agricultural catchment by withholding last year's fields. All other cells in the catchment will be fair game to be chosen for the new fields.
+            e = '''${tempagcatch} = if(isnull(${agcatch}), null(), if(isnull(${oldfields}), ${agcatch}, null() ))'''
+            grass.mapcalc(e, quiet = True,
+                          tempagcatch = tempagcatch,
+                          agcatch = agcatch,
+                          oldfields = oldfields)
+
+            newcells = numfields-tenuredcells #find out the difference between what we have and what we need
+            if newcells <= 0: #negative number, so we drop any underperforming fields)
+                # Check the comparison metric and drop underperforming
+                # fields compared to average yield...
+                if tenuredrop == 0: #drop threshold is 0, so compare to mean yield of all fields
+                    e = '''${tenuredfields} = if(${tempcomparefields} < (${meanyield}), null(), 1)'''
+                    grass.mapcalc(e, quiet = True,
+                                  tenuredfields=tenuredfields,
+                                  tempcomparefields = tempcomparefields,
+                                  meanyield = oldfieldstats['mean'])
+
+                else: # Drop threshold is above zero, so use it to compare
+                      # to the maximum yeild.
+                    e = '''${tenuredfields} = if(${tempcomparefields} < ${maxyield}-(${maxyield}*${tenuredrop}), null(), 1)'''
+                    grass.mapcalc(e, quiet = True,
+                                  tenuredfields=tenuredfields,
+                                  tempcomparefields = tempcomparefields,
+                                  maxyield = oldfieldstats['max'],
+                                  tenuredrop = tenuredrop)
+
+                # Pull stats out to see what we did (how many old fields
+                # kept, how many dropped, and how many new ones we need
+                # this year
+                tenuredstats = grass.parse_command('r.univar', flags = 'ge', map = tenuredfields)
+                tenuredcells = int(float(tenuredstats['cells']) - float(tenuredstats['null_cells']))
+                droppedcells = int(float(oldfieldstats['cells']) - float(oldfieldstats['null_cells'])) - tenuredcells
+                tempfields = tenuredfields
+                grass.message("Keeping %s fields in tenure list, dropping %s underperforming fields" % (tenuredcells, droppedcells))
+
+            else: #positive number, so add fields
+                # Copy last year's fields forward as tenured
+                e = '''${tenuredfields} = if(isnull(${oldfields}), null(), 1)'''
+                grass.mapcalc(e, quiet = True,
+                              oldfields = oldfields,
+                              tenuredfields = tenuredfields)
+
+                tenuredstats = grass.parse_command('r.univar', flags = 'ge', map = oldtenure)
+                tenuredcells = int(float(tenuredstats['cells']) - float(tenuredstats['null_cells']))
+
+                # Now run r.random to get the required number of additional fields
+                tempfields1 = "%stemporary_extra_fields_map" % pid
+                grass.run_command('r.random', quiet = True, input = tempagcatch, npoints = newcells, raster = tempfields1)
+
+                # Patch the new fields into the old fields
+                grass.run_command('r.patch', quiet = True, input = "%s,%s" % (tempfields1,oldtenure), output = tempfields)
+                grass.message("Keeping %s fields in tenure list, adding %s new fields" % (tenuredcells, newcells))
+
+    elif tenuretype == "Satisfice":
+        grass.message("Land Tenure is ON, with SATSFICING strategy")
+
+        # Make map of tenured fields for this year
+        e = '''${tenuredfields}=if(isnull(${oldfields}), null(), 1)'''
+        grass.mapcalc(e, quiet = True,
+                      tenuredfields=tenuredfields,
+                      oldfields = oldfields)
+
+        # Temporarily update the agricultural catchment by withholding
+        # tenured cells. All other cells in the catchment will be fair game
+        # to be chosen for the new fields.
+        e = '''${tempagcatch} = if(isnull(${agcatch}), null(), if(isnull(${tenuredfields}), ${agcatch}, null() ))'''
+        grass.mapcalc(e, quiet = True,
+                      tempagcatch = tempagcatch,
+                      agcatch = agcatch,
+                      tenuredfields = tenuredfields)
+
+        # Pull stats out to see what we did (how many old fields kept, how
+        # many dropped, and how many new ones we need this year
+        tenuredstats = grass.parse_command('r.univar', flags = 'ge', map = tenuredfields)
+        tenuredcells = int(float(tenuredstats['cells']) - float(tenuredstats['null_cells']))
+        droppedcells = 0
+        newcells = numfields-tenuredcells #find out the difference between what we have and what we need
+        if newcells <= 0: #negative number, so we need to drop some fields.
+            # Now run r.random to randomly select fields to drop
+            tempfields1 = "%stemporary_dropped_fields_map" % pid
+            grass.run_command('r.random', quiet = True, input = tenuredfields, npoints = 1-newcells, raster = tempfields1)
+
+            # Remove the new fields from the tenured fields map
+            grass.mapcalc("${tempfields}=if(isnull(${tenuredfields}), null(), if(isnull(${tempfields1}), 1, null()))", quiet = True, tempfields = tempfields, tempfields1 = tempfields1, tenuredfields = tenuredfields)
+            grass.message("Dropping %s excess fields" % (1-newcells))
+
+        else: #positive number, so add fields
+            # Now run r.random to get the required number of additional fields
+            tempfields1 = "%stemporary_extra_fields_map" % pid
+            grass.run_command('r.random', quiet = True, input = tempagcatch, npoints = newcells, raster = tempfields1)
+
+            # Patch the new fields into the old fields
+            grass.run_command('r.patch', quiet = True, input = "%s,%s" % (tempfields1,tenuredfields), output = tempfields)
+            grass.message("Adding %s new fields" % (newcells))
+    else:
+        grass.message("Land Tenure is OFF")
+        tenuredcells = 0
+        droppedcells = 0
+        newcells = 0
+
+        # Now run r.random to get the required number of fields
+        grass.run_command('r.random', quiet = True, input = agcatch, npoints = numfields, raster = tempfields)
+
+    return tenuredcells, droppedcells, newcells, tempfields
 
 def landEvolve(m, outcfact, outxs, r, rain, storms, stormlength, statsout, levol_flags):
         p = options['prefx'] + "_"
