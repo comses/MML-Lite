@@ -316,6 +316,13 @@
 #% guisection: Landcover Dynamics
 #%END
 #%option
+#% key: fireprob
+#% type: string
+#% gisprompt: old,cell,raster
+#% description: Map of fire probabilities due to natural lightning strikes (coded 0 to 1)
+#% guisection: Landcover Dynamics
+#%END
+#%option
 #% key: maxlcov
 #% type: string
 #% gisprompt: old,cell,raster
@@ -530,38 +537,21 @@ import random
 import numpy
 import grass.script as grass
 
-#new random-poisson babymaker
+# New random-poisson babymaker
 def babymaker(p, n): #p is the per capita birth rate, n is the population size
     babys = (numpy.random.poisson(p*100)/100.)*n
     return(int(babys))
 
-# old random-normal babymaker
-#def babymaker(p, n): #p is the per capita birth rate, n is the population size
-#    babys = 0
-#    for m in range(int(n)):
-#        x = numpy.random.random()
-#        if x < float(p):
-#            babys = babys + 1
-#    return(babys)
-
-#new random-poisson deathdealer
+# New random-poisson deathdealer
 def deathdealer(p, n): #p is the per capita death rate, n is the population size
     deaths = (numpy.random.poisson(p*100)/100.)*n
     return(int(deaths))
 
-#old random-normal deathdealer
-#def deathdealer(p, n): #p is the per capita death rate, n is the population size
-#    deaths = 0
-#    for m in range(int(n)):
-#        x = numpy.random.random()
-#        if x < float(p):
-#            deaths = deaths + 1
-#    return(deaths)
-
-#main block of code starts here
+# Main block of code starts here
 def main():
     grass.message("Setting up Simulation........")
-    #setting up Land Use variables for use later on
+
+    # Setting up Land Use variables for use later on
     agcatch = options['agcatch']
     nsfieldsize = options['nsfieldsize']
     ewfieldsize = options['ewfieldsize']
@@ -579,6 +569,7 @@ def main():
     cfact_rules = options['cfact_rules']
     fodder_rules = options['fodder_rules']
     infert = options['infert']
+    fireprob = options['fireprob']
     maxfert = options['maxfert']
     maxwheat = options['maxwheat']
     maxbarley = options['maxbarley']
@@ -605,24 +596,16 @@ def main():
     fodderreq = indfodreq * fodder_anim
     totlabor = numpeople * aglabor
     maxfields = int(round(totlabor / fieldlabor))
-    #these are various rates with min and max values entered in the gui that we need to parse
+
+    # These are various rates with min and max values entered in the gui that we need to parse
     farmimpact = map(float, options['farmimpact'].split(','))
     fertilrate = map(float, options['fertilrate'].split(','))
-    #Setting up Landscape Evol variables to write the r.landscape.evol command later
+
+    # Setting up Landscape Evol variables to write the r.landscape.evol command later
     elev = options["elev"]
     initbdrk = options["initbdrk"]
-    k = options["k"]
-    sdensity = options["sdensity"]
-    kappa = options["kappa"]
-    manningn = options["manningn"]
-    cutoff1 = options["cutoff1"]
-    cutoff2 = options["cutoff2"]
-    cutoff3 = options["cutoff3"]
-    speed = options["speed"]
-    kt = options["kt"]
-    loadexp = options["loadexp"]
-    smoothing = options["smoothing"]
-    #these values could be read in from a climate file, so check that, and act accordingly
+
+    # These values could be read in from a climate file, so check that, and act accordingly
     rain2 = []
     try:
         rain1 = float(options['rain'])
@@ -650,12 +633,14 @@ def main():
         with open(options['r'], 'rU') as f:
             for line in f:
                 R2.append(line.split(",")[1])
-        #check for text header and remove if present
+
+        # Check for text header and remove if present
         try:
             float(R2[0])
         except:
             del R2[0]
-        #throw a fatal error if there aren't enough values in the column
+
+        # Throw a fatal error if there aren't enough values in the column
         if len(R2) != int(years):
             grass.fatal("Number of rows of R-Factor data in your climate file\n do not match the number of iterations you wish to run.\n Please ensure that these numbers match and try again")
             sys.exit(1)
@@ -668,12 +653,13 @@ def main():
         with open(options['storms'], 'rU') as f:
             for line in f:
                 storms2.append(line.split(",")[2])
-        #check for text header and remove if present
+
+        # Check for text header and remove if present
         try:
             float(storms2[0])
         except:
             del storms2[0]
-        #throw a fatal error if there aren't enough values in the column
+        # Throw a fatal error if there aren't enough values in the column
         if len(storms2) != int(years):
             grass.fatal("Number of rows of storm frequency data in your climate file\n do not match the number of iterations you wish to run.\n Please ensure that these numbers match and try again")
             sys.exit(1)
@@ -686,15 +672,18 @@ def main():
         with open(options['stormlength'], 'rU') as f:
             for line in f:
                 stormlength2.append(line.split(",")[3])
-        #check for text header and remove if present
+
+        # Check for text header and remove if present
         try:
             float(stormlength2[0])
         except:
             del stormlength2[0]
-        #throw a fatal error if there aren't enough values in the column
+
+        # Throw a fatal error if there aren't enough values in the column
         if len(stormlength2) != int(years):
             grass.fatal("Number of rows of storm length data in your climate file\n do not match the number of iterations you wish to run.\n Please ensure that these numbers match and try again")
             sys.exit(1)
+            
     # Get the process id to tag any temporary maps we make for easy clean up in the loop
     pid = os.getpid()
 
@@ -776,13 +765,14 @@ def main():
         grass.message('_____________________________\nSIMULATION YEAR: %s\n--------------------------' % o)
 
         # Make some map names
-        fields       = "%sFarming_Impacts_Map%04d" % (p, o)
-        outlcov      = "%sLandcover_Map%04d" % (p, o)
-        outfert      = "%sSoil_Fertilty_Map%04d" % (p, o)
-        outcfact     = "%sCfactor_Map%04d" % (p, o)
-        grazeimpacts = "%sGazing_Impacts_Map%04d" % (p, o)
-        outxs        = "%sRainfall_Excess_Map%04d" % (p, o)
-        oldsdepth    = "%sSoil_Depth_Map0001" % (p)
+        fields        = "%sFarming_Impacts_Map%04d" % (p, o)
+        outlcov       = "%sLandcover_Map%04d" % (p, o)
+        outfert       = "%sSoil_Fertilty_Map%04d" % (p, o)
+        outcfact      = "%sCfactor_Map%04d" % (p, o)
+        grazeimpacts  = "%sGazing_Impacts_Map%04d" % (p, o)
+        outxs         = "%sRainfall_Excess_Map%04d" % (p, o)
+        oldsdepth     = "%sSoil_Depth_Map0001" % (p)
+        natural_fires = "%sNatural_Fires_Map%04d" % (p, o)
 
         # Check if this is year one, use the starting landcover and soilfertily
         # and calculate soildepths
@@ -1344,6 +1334,29 @@ def main():
             totlabor = numpeople * aglabor
             maxfields = int(round(totlabor / fieldlabor))
 
+        # Calculate natural (lightning-caused) fire ignition on the landscape
+        # by parsing fire probability map into three with mapcalc:
+#WHY NOT USE ORIGINAL PROBABILITIES???
+        if len(fireprob) > 0:
+            lowprobmap = "%stemp_fireprob_low" % pid
+            medprobmap = "%stemp_fireprob_med" % pid
+            hiprobmap = "%stemp_fireprob_hi" % pid
+            # Hardcoding cutoffs for no, low, medium, high probability based on histogram of spanish fire probability map.
+            grass.mapcalc("${lowprobmap}=if(${fireprob} <= 0.2, 1, null())", quiet = "True", fireprob=fireprob, lowprobmap=lowprobmap)
+            grass.mapcalc("${medprobmap}=if(${fireprob} > 0.2 || ${fireprob} <= 0.6, 1, null())", quiet = "True", fireprob=fireprob, medprobmap=medprobmap)
+            grass.mapcalc("${hiprobmap}=if(${fireprob} > 0.6, 1, null())", quiet = "True", fireprob=fireprob, hiprobmap=hiprobmap)
+            # randomly sample each of these maps at different densities (find out actual densities from Grant):
+            fires1 = "%sfires_low" % pid
+            fires2 = "%sfires_med" % pid
+            fires3 = "%sfires_hi" % pid
+            grass.run_command('r.random', quiet = 'True', input=lowprobmap, raster=fires1, npoints="5%")
+            grass.run_command('r.random', quiet = 'True', input=medprobmap, raster=fires2, npoints="10%")
+            grass.run_command('r.random', quiet = 'True', input=hiprobmap, raster=fires3, npoints="15%")
+            # patch those back to make final map of fire locations
+            grass.run_command('r.patch', input="%s,%s,%s" % (fires1,fires2,fires3), output=natural_fires)
+            #grab some fire stats
+            firestats = grass.parse_command('r.univar', flags = 'ge', percentile = '90', map = natural_fires)
+
         # Write the yield stats to the stats file
         grass.message('Writing some farming and grazing stats from this year....')
         f = open(textout3, 'a')
@@ -1378,6 +1391,10 @@ def main():
 
         # Calculate this year's landcover impacts and regrowth
         grass.mapcalc("${outlcov}=eval(a=if(${oldlcov} - ${grazeimpacts} + ${growthrate} >= 0, ${oldlcov} - ${grazeimpacts} + ${growthrate}, 0) , b=if(isnull(${fields}), a, ${farmval}), if(${oldlcov} < (${maxlcov} - ${growthrate}) && isnull(b), ${oldlcov} + ${growthrate}, if(isnull(b), ${maxlcov}, b) ))", quiet = True, outlcov = outlcov, oldlcov = oldlcov, maxlcov = maxlcov, growthrate = growthrate, fields = fields, farmval = farmval, grazeimpacts = grazeimpacts)
+
+        if len(fireprob) > 0:
+            #If there was a fire, vegetation goes to 0 no matter what was there.
+            grass.mapcalc("${outlcov}=if(isnull(${natural_fires}), ${outlcov}, 0)", quiet = "True", overwrite = "True", outlcov = outlcov, natural_fires = natural_fires)
 
         # Make a rainfall excess map to send to r.landcape.evol. This is a logarithmic regression (R^2=0.99.) for the data pairs: 0,90;3,85;8,70;13,60;19,45;38,30;50,20. These are the same succession cutoffs that are used in the c-factor coding.
         grass.mapcalc("${outxs}=193.522 - (42.3272 * log(${lcov} + 10.9718))", quiet = True, outxs = outxs, lcov = outlcov)
@@ -1431,9 +1448,14 @@ def main():
         fertstats = grass.parse_command('r.univar', flags = 'ge', percentile = '90', map = outfert)
         grass.run_command('g.remove', quiet = True, flags = "f", type = "rast", name = "MASK")
         f = open(textout4, 'a')
-        if os.path.getsize(textout4) == 0:
-            f.write("Landcover and Soil Fertility Stats\nNote that these stats are collected within the grazing catchment (landcover) and agricultural catchment (fertility) ONLY. Rest of the map is ignored.\n\n,,Basic Stats,,,,Extended Stats\nYear,,Mean Landcover,Standard Deviation Landcover,Mean Soil Fertility,Standard Deviation Soil Fertility,,Minimum Landcover,First Quartile Landcover,Median Landcover,Third Quartile Landcover,Maximum Landcover,,Minimum Soil Fertility,First Quartile Soil Fertility,Median Soil Fertility,Third Quartile Soil Fertility,Maximum Soil Fertility")
-        f.write('\n%s' % o + ',,' + lcovstats['mean'] + ',' + lcovstats['stddev'] + ',' + fertstats['mean'] + ',' + fertstats['stddev'] + ',,' + lcovstats['max'] + ',' + lcovstats['third_quartile'] + ',' + lcovstats['median'] + ',' + lcovstats['first_quartile'] + ',' + lcovstats['min'] + ',,' + fertstats['min'] + ',' + fertstats['first_quartile'] + ',' + fertstats['median'] + ',' + fertstats['third_quartile'] + ',' + fertstats['max'])
+        if len(fireprob) > 0:
+            if os.path.getsize(textout4) == 0:
+                f.write("Landcover, Fire, and Soil Fertility Stats\nNote that Land cover stats are collected within the grazing catchment and fertility stats in the agricultural catchment (fertility) ONLY. Fire stats are collected across the whole map. \n\n,,Basic Stats,,,,Extended Stats\nYear,,Mean Landcover,Standard Deviation Landcover,Mean Soil Fertility,Standard Deviation Soil Fertility,,Minimum Landcover,First Quartile Landcover,Median Landcover,Third Quartile Landcover,Maximum Landcover,,Minimum Soil Fertility,First Quartile Soil Fertility,Median Soil Fertility,Third Quartile Soil Fertility,Maximum Soil Fertility")
+            f.write('\n%s' % now + ',,' + lcovstats['mean'] + ',' + firestats['stddev'] + ',,' + firestats['mean'] + ',' + firestats['stddev'] + ',' + fertstats['mean'] + ',' + fertstats['stddev'] + ',,' + lcovstats['max'] + ',' + lcovstats['third_quartile'] + ',' + lcovstats['median'] + ',' + lcovstats['first_quartile'] + ',' + lcovstats['min'] + ',,' + fertstats['min'] + ',' + fertstats['first_quartile'] + ',' + fertstats['median'] + ',' + fertstats['third_quartile'] + ',' + fertstats['max'])
+        else:
+            if os.path.getsize(textout4) == 0:
+                f.write("Landcover and Soil Fertility Stats\nNote that these stats are collected within the grazing catchment (landcover) and agricultural catchment (fertility) ONLY. Rest of the map is ignored.\n\n,,Basic Stats,,,,Extended Stats\nYear,,Mean Landcover,Standard Deviation Landcover,Mean Soil Fertility,Standard Deviation Soil Fertility,,Minimum Landcover,First Quartile Landcover,Median Landcover,Third Quartile Landcover,Maximum Landcover,,Minimum Soil Fertility,First Quartile Soil Fertility,Median Soil Fertility,Third Quartile Soil Fertility,Maximum Soil Fertility")
+            f.write('\n%s' % o + ',,' + lcovstats['mean'] + ',' + lcovstats['stddev'] + ',' + fertstats['mean'] + ',' + fertstats['stddev'] + ',,' + lcovstats['max'] + ',' + lcovstats['third_quartile'] + ',' + lcovstats['median'] + ',' + lcovstats['first_quartile'] + ',' + lcovstats['min'] + ',,' + fertstats['min'] + ',' + fertstats['first_quartile'] + ',' + fertstats['median'] + ',' + fertstats['third_quartile'] + ',' + fertstats['max'])
 
         #creating c-factor map
         grass.message('Creating C-factor map for r.landscape.evol')
@@ -1448,8 +1470,36 @@ def main():
         cfc.stdin.write('\n'.join(cfcolors))
         cfc.stdin.close()
 
-#PROBABLY SHOULD MAKE THIS A SEPARATE METHOD
-        #Run r.landscape.evol with this years' cfactor map
+        # Run r.landscape.evol with this years' cfactor map
+        landEvolve(m, outcfact, outxs, r, rain, storms, stormlength, statsout, levol_flags)
+
+        #clean up temporary maps
+        #delete C-factor map, unless asked to save it
+        if use_flags['c'] is False:
+            grass.run_command("g.remove", quiet = True, flags = 'f', type = "rast", name = "%s,%s" %  (outcfact,outxs))
+        else:
+            pass
+        grass.run_command('g.remove', quiet = True, flags = 'f', type = "rast", pattern = '%s*' % pid)
+        grass.message('Completed year %s of the simulation' % o)
+
+    return(grass.message(".........................SIMULATION COMPLETE...........................\nCheck in the current mapset for farming/grazing yields, landcover, fertility, and erosion/depostion stats files from this run."))
+
+def landEvolve(m, outcfact, outxs, r, rain, storms, stormlength, statsout, levol_flags):
+        p = options['prefx'] + "_"
+        elev = options["elev"]
+        initbdrk = options["initbdrk"]
+        k = options["k"]
+        sdensity = options["sdensity"]
+        kappa = options["kappa"]
+        manningn = options["manningn"]
+        cutoff1 = options["cutoff1"]
+        cutoff2 = options["cutoff2"]
+        cutoff3 = options["cutoff3"]
+        speed = options["speed"]
+        kt = options["kt"]
+        loadexp = options["loadexp"]
+        smoothing = options["smoothing"]
+
         grass.message('Running landscape evolution for this year....')
 
         #check if this is year one, and use the starting dem if so
@@ -1457,23 +1507,12 @@ def main():
             inelev = elev
         else:
             inelev = "%sElevation_Map0001" % (p)
+
         try:
             grass.run_command('r.landscape.evol2', quiet = True, number = 1, prefx = options["prefx"], c = outcfact, elev = inelev, initbdrk = initbdrk, outdem = "Elevation_Map", outsoil = "Soil_Depth_Map", r = r, k = k, sdensity = sdensity, kappa = kappa, manningn = manningn, flowcontrib = outxs, cutoff1 = cutoff1, cutoff2 = cutoff2, cutoff3 = cutoff3, rain = rain, storms = storms, stormlength = stormlength, speed = speed, kt = kt, loadexp = loadexp, smoothing = smoothing, statsout = statsout, flags = ''.join(levol_flags))
         except:
             grass.fatal("Something is wrong with the values you sent to r.landscape.evol. Did you forget something? Check the values and try again...\nSimulation terminated with an error at time step %s" % o)
             sys.exit(1)
-
-        #delete C-factor map, unless asked to save it
-        if use_flags['c'] is False:
-            grass.run_command("g.remove", quiet = True, flags = 'f', type = "rast", name = "%s,%s" %  (outcfact,outxs))
-        else:
-            pass
-
-        #clean up temporary maps
-        grass.run_command('g.remove', quiet = True, flags = 'f', type = "rast", pattern = '%s*' % pid)
-        grass.message('Completed year %s of the simulation' % o)
-
-    return(grass.message(".........................SIMULATION COMPLETE...........................\nCheck in the current mapset for farming/grazing yields, landcover, fertility, and erosion/depostion stats files from this run."))
 
 
 #Here is where the code in "main" actually gets executed. This way of programming is neccessary for the way g.parser needs to run.
