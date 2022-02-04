@@ -603,8 +603,8 @@ def main():
     totlabor = numpeople * aglabor
     maxfields = int(round(totlabor / fieldlabor))
     #these are various rates with min and max values entered in the gui that we need to parse
-    farmimpact = map(float, options['farmimpact'].split(','))
-    fertilrate = map(float, options['fertilrate'].split(','))
+    farmimpact = list(map(float, options['farmimpact'].split(',')))
+    fertilrate = list(map(float, options['fertilrate'].split(',')))
     #Setting up Landscape Evol variables to write the r.landscape.evol command later
     elev = options["elev"]
     initbdrk = options["initbdrk"]
@@ -724,13 +724,13 @@ def main():
     textout4 = statsdir + os.sep + prfx + '_landcover_and_fertility_stats.txt'
     statsout = statsdir + os.sep + prfx + '_erdep_stats.txt'
     # Make color rules for landcover, cfactor, and soil fertilty maps
-    lccolors = tempfile.NamedTemporaryFile()
-    lccolors.write('0 grey\n10 red\n20 orange\n30 brown\n40 yellow\n%s green' % maxval)
+    lccolors = tempfile.NamedTemporaryFile(mode = "w")
+    lccolors.write('0 grey\n10 red\n20 orange\n30 brown\n40 yellow\n%s green'% maxval)
     lccolors.flush()
-    cfcolors = tempfile.NamedTemporaryFile()
+    cfcolors = tempfile.NamedTemporaryFile(mode = "w")
     cfcolors.write('0.1 grey\n0.05 red\n0.03 orange\n0.01 brown\n0.008 yellow\n0.005 green')
     cfcolors.flush()
-    fertcolors = tempfile.NamedTemporaryFile()
+    fertcolors = tempfile.NamedTemporaryFile(mode = "w")
     fertcolors.write('0 white\n20 grey\n40 yellow\n60 orange\n80 brown\n100 black')
     fertcolors.flush()
     #Figure out the number of cells per hectare and how many square meters per cell to use as conversion factors for yields
@@ -808,7 +808,7 @@ def main():
         #gather some stats from yields maps in order to make an estimate of number of farm plots...
         cerealstats2 = grass.parse_command('r.univar', flags = 'ge', map = tempcerealreturn)
         # Grab the agent's current memory of farming yields to see what they think they need to do this year
-        if len(farmyieldmemory) is 0:
+        if len(farmyieldmemory) == 0:
             fuzzyyieldmemory = random.gauss(float(cerealstats2["mean"]), (float(cerealstats2['mean']) * 0.0333))
             fuzzydeficitmemory = -1
         else:
@@ -1005,7 +1005,7 @@ def main():
         #Now that we know where we are allowed to graze, how much of the grazing catchment does the agent think it needs to meet its remaining fodder requirements? First grab some general stats from the grazing catchment.
         fodderstats = grass.parse_command('r.univar', flags = 'ge', percentile = '90', map = tempgrazecatch)
         # Use the agent's memory of past grazing yields and deficits to determine what they think they need to do this year.
-        if len(grazeyieldmemory) is 0: #if it's the first year, then just use the fuzzed average potential yield from all cells in agcatch, and make the padded amount 1
+        if len(grazeyieldmemory) == 0: #if it's the first year, then just use the fuzzed average potential yield from all cells in agcatch, and make the padded amount 1
             fuzzygyieldmemory = random.gauss(float(fodderstats['mean']), (float(fodderstats['mean']) * 0.0333))
             fuzzygdeficitmemory = -1
         else:

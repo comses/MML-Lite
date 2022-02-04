@@ -348,11 +348,11 @@ def main(m, o, p, q, r, s):
         tmperosion = '%sTEMPORARY_erosion%04d' % (pid, o)
         tmpdep = '%sTEMPORARY_deposition%04d' % (pid, o)
     # Make color rules for netchange maps
-    nccolors = tempfile.NamedTemporaryFile()
+    nccolors = tempfile.NamedTemporaryFile(mode = "w")
     nccolors.write('100% 0 0 100\n1 blue\n0.5 indigo\n0.01 green\n0 white\n-0.01 yellow\n-0.5 orange\n-1 red\n0% 150 0 50')
     nccolors.flush()
     # Make color rules for soil depth maps
-    sdcolors = tempfile.NamedTemporaryFile()
+    sdcolors = tempfile.NamedTemporaryFile(mode = "w")
     sdcolors.write('100% 0:249:47\n20% 78:151:211\n6% 194:84:171\n0% 227:174:217')
     sdcolors.flush()
     # If first iteration, use input maps. Otherwise, use maps generated from previous iterations
@@ -643,9 +643,9 @@ if __name__ == "__main__":
     else:
         statsout = options["statsout"]
     if os.path.isfile(statsout):
-        f = file(statsout, 'a')
+        f = open(statsout, 'a')
     else:
-        f = file(statsout, 'wt')
+        f = open(statsout, 'wt')
         f.write('These statistics are in units of vertical meters (depth) per cell\n,,Mean Values,,,,Standard Deviations,,,,Totals,,,Additional Stats\nIteration,,Mean Erosion,Mean Deposition,Mean Soil Depth,,Standard Deviation Erosion,Standard Deviation Deposition,Standard Deviation Soil Depth,,Total Sediment Eroded,Total Sediment Deposited,,Minimum Erosion,First Quartile Erosion,Median Erosion,Third Quartile Erosion,Maximum Erosion,Original Un-smoothed Maximum Erosion,,Minimum Deposition,First Quartile Deposition,Median Deposition,Third Quartile Deposition,Maximum Deposition,Original Un-smoothed Maximum Deposition,,Minimum Soil Depth,First Quartile Soil Depth,Median Soil Depth,Third Quartile Soil Depth,Maximum Soil Depth')
     if  flags["p"] is True :
         grass.message('Making sample points map for determining cutoffs.')
