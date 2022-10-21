@@ -1,5 +1,7 @@
 # MML-Lite
 The "lite" version of the MedLanD Modeling Laboratory
+Please use the following DOI to cite this code: [![DOI](https://zenodo.org/badge/119421478.svg)](https://zenodo.org/badge/latestdoi/119421478)
+Authors are Isaac I. Ullah, C. Michael Barton, Grant Snitker, Nicholas P. Gauthier, and Sean M. Bergin.
 
 ---
 
