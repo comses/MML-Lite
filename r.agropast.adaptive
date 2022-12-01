@@ -820,10 +820,16 @@ def main():
             fuzzyyieldmemory = numpy.mean(farmyieldmemory[slicer:])
             fuzzydeficitmemory = numpy.mean(farmingmemory[slicer:])
         #Figure out how many fields the agent thinks it needs based on current average yield
-        numfields = int(round(float(cerealreq) / fuzzyyieldmemory))
+        if fuzzyyieldmemory == 0:
+            numfields = 0
+        else:
+            numfields = int(round(float(cerealreq) / fuzzyyieldmemory))
         grass.debug("total fields should be %s" % numfields)
         #discover how many cells to add or subtract based on agent memory of surplus or deficit
-        fieldpad = int(round(fuzzydeficitmemory / fuzzyyieldmemory))
+        if fuzzyyieldmemory == 0:
+            fieldpad = 0
+        else:
+            fieldpad = int(round(fuzzydeficitmemory / fuzzyyieldmemory))
         grass.debug("fieldpad (sign reversed) %s" % fieldpad)
         #add or remove the number of extra cells calculated from agent memory surplus or deficit
         numfields = numfields - fieldpad
@@ -1012,10 +1018,16 @@ def main():
             fuzzygyieldmemory = numpy.mean(grazeyieldmemory[slicer:])
             fuzzygdeficitmemory = numpy.mean(grazingmemory[slicer:])
         #Figure out how many grazing patches the agent thinks it needs based on current average patch yield
-        numfoddercells = int(round(float(remainingfodder) / fuzzygyieldmemory))
+        if fuzzygyieldmemory == 0:
+            numfoddercells == 0
+        else:
+            numfoddercells = int(round(float(remainingfodder) / fuzzygyieldmemory))
         grass.debug("total graze patches should be %s" % numfoddercells)
         #discover how many cells to add or subtract based on agent memory of surplus or deficit
-        fodderpad = int(round(fuzzygdeficitmemory / fuzzygyieldmemory))
+        if fuzzygyieldmemory == 0:
+            fodderpad = 0
+        else:
+            fodderpad = int(round(fuzzygdeficitmemory / fuzzygyieldmemory))
         grass.debug("fodderpad (sign reversed) %s" % fodderpad)
         #add or remove the number of extra cells calculated from agent memory surplus or deficit
         numfoddercells = numfoddercells - fodderpad
