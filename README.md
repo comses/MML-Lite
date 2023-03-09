@@ -1,7 +1,12 @@
 # MML-Lite
 The "lite" version of the MedLanD Modeling Laboratory
 Please use the following DOI to cite this code: [![DOI](https://zenodo.org/badge/119421478.svg)](https://zenodo.org/badge/latestdoi/119421478)
+
 Authors are Isaac I. Ullah, C. Michael Barton, Grant Snitker, Nicholas P. Gauthier, and Sean M. Bergin.
+
+---
+
+**Transition to GRASS 8 is underway and will BREAK backwards compatibility! So far, only r.agropast.adaptive and r.lanscape.evol are updated. To see how the new version of r.landscape.evol works, please see [this page](https://github.com/OSGeo/grass-addons/blob/grass8/src/raster/r.landscape.evol/r.landscape.evol.md). For now, the older GRASS 7 version of r.landscape.evol is provided here as r.landscape.evol.old. You will have to remove the ".old" part of the name after downloading it in order for it to work with any of the yet-to-be updated scripts.**
 
 ---
 
