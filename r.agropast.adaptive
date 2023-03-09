@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 ############################################################################
 #
@@ -47,7 +47,7 @@
 #% key: prfx
 #% type: string
 #% description: Prefix for all output maps
-#% answer: sim
+#% answer: sim_
 #% required: yes
 #% guisection: Simulation Control
 #%END
@@ -121,15 +121,13 @@
 #%option
 #% key: a_p_ratio
 #% type: double
-#% description: Actual ratio of agricultural to pastoral foods in the diet (0-1, where 0 = 100% agricultural and 1 = 100% pastoral)
+#% description: Actual ratio of agricultural to pastoral foods in the diet (0.01-0.99, where smaller numbers are mostly agricultural, and larger numbers are mostly pastoral)
 #% answer: 0.20
-#% options: 0.0-1.0
+#% options: 0.01-0.99
 #% guisection: Agent Properties
 #%END
-#%option
+#%option G_OPT_R_MAP
 #% key: costsurf
-#% type: string
-#% gisprompt: old,cell,raster
 #% description: Map of movement costs from the center of the agricultural/grazing catchments (from r.walk or r.cost).
 #% guisection: Agent Properties
 #%END
@@ -143,10 +141,8 @@
 ##################################
 #Farming Options
 ##################################
-#%option
+#%option G_OPT_R_MAP
 #% key: agcatch
-#% type: string
-#% gisprompt: old,cell,raster
 #% description: Map of the largest possible agricultural catchment map (From r.catchment or r.buffer, where catchment is a single integer value, and all else is NULL)
 #% guisection: Farming
 #%END
@@ -228,10 +224,8 @@
 ##################################
 #Grazing Options
 ##################################
-#%option
+#%option G_OPT_R_MAP
 #% key: grazecatch
-#% type: string
-#% gisprompt: old,cell,raster
 #% description: Map of the largest possible grazing catchment (From r.catchment or r.buffer, where catchment is a single integer value, and all else is NULL).
 #% guisection: Grazing
 #%END
@@ -271,10 +265,8 @@
 #% options: 0.0-100.0
 #% guisection: Grazing
 #%END
-#%option
+#%option G_OPT_F_INPUT
 #% key: fodder_rules
-#% type: string
-#% gisprompt: string
 #% description: Path to foddering rules file for calculation of fodder gained by grazing
 #% answer: /home/iullah/Dropbox/Scripts_Working_Dir/rules/fodder_rules.txt
 #% guisection: Grazing
@@ -301,48 +293,36 @@
 #% multiple: yes
 #% guisection: Landcover Dynamics
 #%END
-#%option
+#%option G_OPT_R_MAP
 #% key: inlcov
-#% type: string
-#% gisprompt: old,cell,raster
 #% description: Input landcover map (Coded according to landcover rules file below)
 #% guisection: Landcover Dynamics
 #%END
-#%option
+#%option G_OPT_R_MAP
 #% key: infert
-#% type: string
-#% gisprompt: old,cell,raster
 #% description: Input fertility map (Coded according to percentage retained fertility, with 100 being full fertility)
 #% guisection: Landcover Dynamics
 #%END
-#%option
+#%option G_OPT_R_MAP
 #% key: maxlcov
-#% type: string
-#% gisprompt: old,cell,raster
 #% description: Maximum value of landcover for the landscape (Can be a single numerical value or a cover map of different maximum values. Shouldn't exceed maximum value in rules file')
 #% answer: 50
 #% guisection: Landcover Dynamics
 #%END
-#%option
+#%option G_OPT_R_MAP
 #% key: maxfert
-#% type: string
-#% gisprompt: old,cell,raster
 #% description: Maximum value of fertility for the landscape (Can be a single numerical value or a cover map of different maximum values. Shouldn't exceed 100)
 #% answer: 100
 #% guisection: Landcover Dynamics
 #%END
-#%option
+#%option G_OPT_F_INPUT
 #% key: lc_rules
-#% type: string
-#% gisprompt: string
 #% description: Path to reclass rules file for landcover map
 #% answer: /home/iullah/Dropbox/Scripts_Working_Dir/rules/luse_reclass_rules.txt
 #% guisection: Landcover Dynamics
 #%END
-#%option
+#%option G_OPT_F_INPUT
 #% key: cfact_rules
-#% type: string
-#% gisprompt: string
 #% description: Path to recode rules file for c-factor map
 #% answer: /home/iullah/Dropbox/Scripts_Working_Dir/rules/cfactor_recode_rules.txt
 #% guisection: Landcover Dynamics
@@ -356,169 +336,139 @@
 ##################################
 #Landscape Evolution Options
 ##################################
-#%option
-#% key: elev
-#% type: string
-#% gisprompt: old,cell,raster
-#% description: Input elevation map (DEM of surface)
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: initbdrk
-#% type: string
-#% gisprompt: old,cell,raster
-#% description: Bedrock elevations map (DEM of bedrock)
-#% answer:
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: k
-#% type: double
-#% gisprompt: old,cell,raster
-#% description: Soil erodability index (K factor) map or constant
-#% answer: 0.42
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: sdensity
-#% type: double
-#% gisprompt: old,cell,raster
-#% description: Soil density map or constant [T/m3] for conversion from mass to volume
-#% answer: 1.2184
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: kt
-#% type: double
-#% description: Stream transport efficiency variable (0.001 for a soft substrate, 0.0001 for a normal substrate, 0.00001 for a hard substrate, 0.000001 for a very hard substrate)
-#% answer: 0.0001
-#% options: 0.001,0.0001,0.00001,0.000001
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: loadexp
-#% type: double
-#% description: Stream transport type variable (1.5 for mainly bedload transport, 2.5 for mainly suspended load transport)
-#% answer: 1.5
-#% options: 1.5,2.5
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: manningn
-#% type: string
-#% gisprompt: old,cell,raster
-#% description: Map or constant of the value of Manning's "N" value for channelized flow.
-#% answer: 0.05
-#% required : no
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: kappa
-#% type: double
-#% description: Hillslope diffusion (Kappa) rate map or constant [m/kyr]
-#% answer: 1
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: rain
-#% type: string
-#% gisprompt: old,cell,raster
-#% description: Precip totals for the average storm [mm] (or path to climate file of comma separated values of "rain,R,storms,stormlength", with a new line for each year of the simulation)
-#% answer: 20.61
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: r
-#% type: string
-#% description: Rainfall (R factor) constant (AVERAGE FOR WHOLE MAP AREA) (or path to climate file of comma separated values of "rain,R,storms,stormlength", with a new line for each year of the simulation)
-#% answer: 4.54
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: storms
-#% type: string
-#% description: Number of storms per year (integer) (or path to climate file of comma separated values of "rain,R,storms,stormlength", with a new line for each year of the simulation)
-#% answer: 25
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: stormlength
-#% type: string
-#% description: Average length of the storm [h] (or path to climate file of comma separated values of "rain,R,storms,stormlength", with a new line for each year of the simulation)
-#% answer: 24.0
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: speed
-#% type: double
-#% description: Average velocity of flowing water in the drainage [m/s]
-#% answer: 1.4
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: cutoff1
-#% type: double
-#% description: Flow accumulation breakpoint value for shift from diffusion to overland flow
-#% answer: 0
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: cutoff2
-#% type: double
-#% description: Flow accumulation breakpoint value for shift from overland flow to rill/gully flow (if value is the same as cutoff1, no sheetwash procesess will be modeled)
-#% answer: 100
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: cutoff3
-#% type: double
-#% description: Flow accumulation breakpoint value for shift from rill/gully flow to stream flow (if value is the same as cutoff2, no rill procesess will be modeled)
-#% answer: 100
-#% guisection: Landscape Evolution
-#%end
-#%option
-#% key: smoothing
-#% type: string
-#% description: Amount of additional smoothing (answer "no" unless you notice large spikes in the erdep rate map)
-#% answer: no
-#% options: no,low,high
-#% guisection: Landscape Evolution
-#%end
-#%flag
-#% key: 1
-#% description: -1 Calculate streams as 1D difference instead of 2D divergence
-#% guisection: Landscape Evolution
-#%end
-#%flag
-#% key: k
-#% description: -k Keep ALL temporary maps (overides flags -drst). This will make A LOT of maps!
-#% guisection: Landscape Evolution
-#%end
-#%flag
-#% key: d
-#% description: -d Don't output yearly soil depth maps
-#% guisection: Landscape Evolution
-#%end
-#%flag
-#% key: r
-#% description: -r Don't output yearly maps of the erosion/deposition rates ("ED_rate" map, in vertical meters)
-#% guisection: Landscape Evolution
-#%end
-#%flag
-#% key: s
-#% description: -s Keep all slope maps
-#% guisection: Landscape Evolution
-#%end
-#%flag
-#% key: t
-#% description: -t Keep yearly maps of the Transport Capacity at each cell ("Qs" maps)
-#% guisection: Landscape Evolution
-#%end
-#%flag
-#% key: e
-#% description: -e Keep yearly maps of the Excess Transport Capacity (divergence) at each cell ("DeltaQs" maps)
-#% guisection: Landscape Evolution
-#%end
+# %option G_OPT_R_ELEV
+# % key: elev
+# % description: Input elevation map (DEM of surface)
+# % required : no
+# % guisection: Landscape Evolution
+# %end
+# %option G_OPT_R_MAP
+# % key: initbdrk
+# % description: Bedrock elevations map (DEM of bedrock)
+# % answer:
+# % required : no
+# % guisection: Landscape Evolution
+# %end
+# %option G_OPT_R_MAP
+# % key: k
+# % description: Soil erodability index (K factor) map or constant (values <= 0.09 [t.ha.h /ha.MJ.mm])
+# % answer: 0.05
+# % required : no
+# % guisection: Landscape Evolution
+# %end
+# %option G_OPT_R_MAP
+# % key: sdensity
+# % description: Soil density map or constant for conversion from mass to volume (values typically >=1000 [kg/m3])
+# % answer: 1218.4
+# % required : no
+# % guisection: Landscape Evolution
+# %end
+# %option
+# % key: transp_eq
+# % type: string
+# % description: The sediment transport equation to use (USPED: Tc=R*K*C*P*A^m*B^n, Stream power: Tc=Kt*gw*1/N*h^m*B^n, or Shear stress: Tc=Kt*tau^m ).
+# % answer: StreamPower
+# % options: StreamPower,ShearStress,USPED
+# % guisection: Landscape Evolution
+# %end
+# %option
+# % key: exp_m
+# % type: string
+# % description: Exponent m relates to the influence of upslope area (and thus flow depth, discharge) on transport capacity. Values generally thought to scale inversely with increasing depth of flow between the two cutoff thresholds specified: "thresh1,m1,thresh2,m2"
+# % answer: 10,2,100,1
+# % required : no
+# % guisection: Landscape Evolution
+# %end
+# %option
+# % key: exp_n
+# % type: string
+# % description: Exponent n relates to the influence of local topographic slope on transport capacity. Default values set to scale inversely with increasing local slope between the two slope cutoff thresholds specified: "thresh1,n1,thresh2,n2"
+# % answer: 10,2,45,0.5
+# % required : no
+# % guisection: Landscape Evolution
+# %end
+# %flag
+# % key: m
+# % description: -m Apply smoothing (useful to mitigate possible unstable conditions in streams)
+# % guisection: Landscape Evolution
+# %end
+# %option G_OPT_R_MAP
+# % key: r
+# % description: Rainfall (R factor) map or constant (Employed only in the USPED equation) (values typically between 500 and 10000 [MJ.mm/ha.h.yr])
+# % answer: 720
+# % guisection: Climate
+# %end
+# %option G_OPT_R_MAP
+# % key: rain
+# % description: Precip total for the average erosion-causing storm map (Employed in stream power and shear stress equations) (values typically >=30.0 [mm])
+# % answer: 30
+# % guisection: Climate
+# %end
+# %option G_OPT_R_MAP
+# % key: storms
+# % description: Number of erosion-causing storms per year map or constant (Employed in stream power and shear stress equations) (values >=0 [integer])
+# % answer: 2
+# % guisection: Climate
+# %end
+# %option G_OPT_R_MAP
+# % key: stormlength
+# % description: Average length of the storm map or constant (Employed in stream power and shear stress equations) (values >=0.0 [h])
+# % answer: 24.0
+# % guisection: Climate
+# %end
+# %option G_OPT_R_MAP
+# % key: stormi
+# % description: Proportion of the length of the storm where the storm is at peak intensity map or constant (Employed in stream power and shear stress equations) (values typically ~0.05 [unitless proportion])
+# % answer: 0.05
+# % guisection: Climate
+# %end
+# %option  G_OPT_F_INPUT
+# % key: climfile
+# % required: no
+# % description: Path to climate file of comma separated values of "rain,R,storms,stormlength,stormi", with a new line for each year of the simulation. This option will override values or maps entered above.
+# % guisection: Climate
+# %end
+# %option G_OPT_R_MAP
+# % key: manningn
+# % description: Map or constant of the value of Manning's "N" value for channelized flow. (Employed in stream power and shear stress equations) (0.03 = clean/straight stream channel, 0.035 = major river, 0.04 = sluggish stream with pools, 0.06 = very clogged streams [unitless])
+# % answer: 0.03
+# % required : no
+# % guisection: Hydrology
+# %end
+# %option
+# % key: convergence
+# % type: integer
+# % description: Value for the flow convergence variable in r.watershed. Small values make water spread out, high values make it converge in narrower channels.
+# % answer: 5
+# % options: 1,2,3,4,5,6,7,8,9,10
+# % required : no
+# % guisection: Hydrology
+# %end
+# %flag
+# % key: d
+# % description: -d Don't output yearly soil depth maps
+# % guisection: Landscape Evolution
+# %end
+# %flag
+# % key: r
+# % description: -r Don't output yearly maps of the erosion/deposition rates ("ED_rate" map, in vertical meters)
+# % guisection: Landscape Evolution
+# %end
+# %flag
+# % key: s
+# % description: -s Keep all slope maps
+# % guisection: Landscape Evolution
+# %end
+# %flag
+# % key: t
+# % description: -t Keep yearly maps of the Transport Capacity at each cell ("Qs" maps)
+# % guisection: Landscape Evolution
+# %end
+# %flag
+# % key: e
+# % description: -e Keep yearly maps of the Excess Transport Capacity (divergence) at each cell ("DeltaQs" maps)
+# % guisection: Landscape Evolution
+# %end
 
 import sys
 import os
@@ -554,6 +504,41 @@ def deathdealer(p, n): #p is the per capita death rate, n is the population size
 #        if x < float(p):
 #            deaths = deaths + 1
 #    return(deaths)
+
+def climfile(d, y, years):
+    """
+    Check a climate variable and read in from text if needed.
+    Takes a variable name to check and returns as a parsed list of variables
+    If there is a climate file, values will be read in for each year.
+    If not, the value entered will be applied to all years
+    d = climate variable to be parsed
+    y = column containing that climate variable in the input file
+    years = number of years of the simulation
+    """
+    l = []
+    try:
+        d1 = float(d)
+        for year in range(int(years)):
+            l.append(d1)
+        return l
+    except:
+        with open(d, "rU") as f:
+            for line in f:
+                l.append(line.split(",")[y])
+
+        # Check for text header and remove if present
+        try:
+            float(l[0])
+        except:
+            del l[0]
+
+        # Throw a warning if there aren't enough values in the column
+        if len(l) != int(years):
+            grass.fatal(
+                "Number of rows of rainfall data in your climate file\ndo not match the number of iterations you wish to run.\n Please ensure that these numbers match and try again"
+            )
+            sys.exit(1)
+        return l
 
 #main block of code starts here
 def main():
@@ -610,88 +595,26 @@ def main():
     initbdrk = options["initbdrk"]
     k = options["k"]
     sdensity = options["sdensity"]
-    kappa = options["kappa"]
+    transp_eq = options["transp_eq"]
+    exp_m = options["exp_m"]
+    exp_n =  options["exp_n"]
     manningn = options["manningn"]
-    cutoff1 = options["cutoff1"]
-    cutoff2 = options["cutoff2"]
-    cutoff3 = options["cutoff3"]
-    speed = options["speed"]
-    kt = options["kt"]
-    loadexp = options["loadexp"]
-    smoothing = options["smoothing"]
-    #these values could be read in from a climate file, so check that, and act accordingly
-    rain2 = []
-    try:
-        rain1 = float(options['rain'])
-        for year in range(int(years)):
-            rain2.append(rain1)
-    except:
-        with open(options['rain'], 'rU') as f:
-            for line in f:
-                rain2.append(line.split(",")[0])
-        #check for text header and remove if present
-        try:
-            float(rain2[0])
-        except:
-            del rain2[0]
-        #throw a fatal error if there aren't enough values in the column
-        if len(rain2) != int(years):
-            grass.fatal("Number of rows of rainfall data in your climate file\n do not match the number of iterations you wish to run.\n Please ensure that these numbers match and try again")
-            sys.exit(1)
-    R2 = []
-    try:
-        R1 = float(options['r'])
-        for year in range(int(years)):
-            R2.append(R1)
-    except:
-        with open(options['r'], 'rU') as f:
-            for line in f:
-                R2.append(line.split(",")[1])
-        #check for text header and remove if present
-        try:
-            float(R2[0])
-        except:
-            del R2[0]
-        #throw a fatal error if there aren't enough values in the column
-        if len(R2) != int(years):
-            grass.fatal("Number of rows of R-Factor data in your climate file\n do not match the number of iterations you wish to run.\n Please ensure that these numbers match and try again")
-            sys.exit(1)
-    storms2 = []
-    try:
-        storms1 = float(options['storms'])
-        for year in range(int(years)):
-            storms2.append(storms1)
-    except:
-        with open(options['storms'], 'rU') as f:
-            for line in f:
-                storms2.append(line.split(",")[2])
-        #check for text header and remove if present
-        try:
-            float(storms2[0])
-        except:
-            del storms2[0]
-        #throw a fatal error if there aren't enough values in the column
-        if len(storms2) != int(years):
-            grass.fatal("Number of rows of storm frequency data in your climate file\n do not match the number of iterations you wish to run.\n Please ensure that these numbers match and try again")
-            sys.exit(1)
-    stormlength2 = []
-    try:
-        stormlength1 = float(options['stormlength'])
-        for year in range(int(years)):
-            stormlength2.append(stormlength1)
-    except:
-        with open(options['stormlength'], 'rU') as f:
-            for line in f:
-                stormlength2.append(line.split(",")[3])
-        #check for text header and remove if present
-        try:
-            float(stormlength2[0])
-        except:
-            del stormlength2[0]
-        #throw a fatal error if there aren't enough values in the column
-        if len(stormlength2) != int(years):
-            grass.fatal("Number of rows of storm length data in your climate file\n do not match the number of iterations you wish to run.\n Please ensure that these numbers match and try again")
-            sys.exit(1)
+    convergence = options["convergence"]
+    # These values could be read in from a climate file, so check that, and
+    # act accordingly. Either way, the result will be some lists with the same
+    # number of entries as there are iterations.
+    if options["climfile"]:
+        R2 = climfile(options["climfile"], 0, years)
+        rain2 = climfile(options["climfile"], 1, years)
+        stormlength2 = climfile(options["climfile"], 2, years)
+        storms2 = climfile(options["climfile"], 3, years)
+        stormi2 = climfile(options["climfile"], 4, years)
+    else:
+        R2 = climfile(options["r"], 0, years)
+        rain2 = climfile(options["rain"], 1, years)
+        stormlength2 = climfile(options["stormlength"], 2, years)
+        storms2 = climfile(options["storms"], 3, years)
+        stormi2 = climfile(options["stormi"], 4, years)
     #get the process id to tag any temporary maps we make for easy clean up in the loop
     pid = os.getpid()
     #we need to separate out flags used by this script, and those meant to be sent to r.landscape.evol. We will do this by popping them out of the default "flags" dictionary, and making a new dictionary called "use_flags"
@@ -705,7 +628,6 @@ def main():
     #check if maxlcov is a map or a number, and grab the actual max value for the stats file
     try:
         maxval = int(float(maxlcov))
-
     except:
         maxlcovdict = grass.parse_command('r.univar', flags = 'ge', map = maxlcov)
         maxval = int(float(maxlcovdict['max']))
@@ -718,11 +640,11 @@ def main():
     #set up the stats files names
     env = grass.gisenv()
     statsdir = os.path.join(env['GISDBASE'], env['LOCATION_NAME'], env['MAPSET'])
-    textout = statsdir + os.sep + prfx + '_landcover_temporal_matrix.txt'
-    textout2 = statsdir + os.sep + prfx + '_fertility_temporal_matrix.txt'
-    textout3 = statsdir + os.sep + prfx + '_yields_stats.txt'
-    textout4 = statsdir + os.sep + prfx + '_landcover_and_fertility_stats.txt'
-    statsout = statsdir + os.sep + prfx + '_erdep_stats.txt'
+    textout = statsdir + os.sep + prfx + 'landcover_temporal_matrix.txt'
+    textout2 = statsdir + os.sep + prfx + 'fertility_temporal_matrix.txt'
+    textout3 = statsdir + os.sep + prfx + 'yields_stats.txt'
+    textout4 = statsdir + os.sep + prfx + 'landcover_and_fertility_stats.txt'
+    statsout = statsdir + os.sep + prfx + 'erdep_stats.txt'
     # Make color rules for landcover, cfactor, and soil fertilty maps
     lccolors = tempfile.NamedTemporaryFile(mode = "w")
     lccolors.write('0 grey\n10 red\n20 orange\n30 brown\n40 yellow\n%s green'% maxval)
@@ -752,13 +674,13 @@ def main():
     grazeyieldmemory = []
     grass.message('Simulation will run for %s iterations.\n\n............................STARTING SIMULATION...............................' % years)
     # Before we get going on the loop, write out some basic information about the run. These can be used to remeber what the settings were for this particular run, as well as to provide some interpretation for the other stats files that will be made.
-    f = open(statsdir + os.sep + prfx + '_run_info.txt', 'a')
+    f = open(statsdir + os.sep + prfx + 'run_info.txt', 'a')
     f.write("Variables used in the model:\ncell resolution (grazing patch size),%s\nagcatch,%s\nnsfieldsize,%s\newfieldsize,%s\ngrazecatch,%s\ngrazespatial,%s\ngrazepatchy,%s\nmaxgrazeimpact,%s\nmanurerate,%s\ninlcov,%s\nyears,%s\nfarmval,%s\nmaxfert,%s\nmaxwheat,%s\nmaxbarley,%s\nagmix,%s\nagentmem,%s\nnumpeople,%s\nanimals,%s\ncalculated agricultural ratio,%s\ncalculated pastoral ratio,%s\ncalculated cereal required per person,%s\ncalculated fodder required per animal,%s\ncalculated total cereal required,%s\ncalculated total number of animals required,%s\ncalculated total fodder required,%s\n\nFarming stats in Kg wheat and/or barley seeds per farmplot.\nGrazing stats in Kg of digestable matter per grazing plot. Note that this may also include stubble grazing if enabled." % (region['nsres'],agcatch,nsfieldsize,ewfieldsize,grazecatch,grazespatial,grazepatchy,maxgrazeimpact,manurerate,inlcov,years,farmval,maxfert,maxwheat,maxbarley,agmix,agentmem,numpeople,animals,agratio,pratio,indcerreq,fodder_anim,indfodreq,cerealreq,fodderreq)) 
     f.close()
     #Set up loop
     for year in range(int(years)):
-        now = str(year + 1).zfill(digits)
-        then = str(year).zfill(digits)
+        now = year + 1
+        then = year
         if numpeople == 0:
             grass.fatal("Everybody is dead. \nSimulation stopped at year %s." % then)
         #grab the current climate vars from the lists
@@ -766,26 +688,27 @@ def main():
         r = R2[year]
         storms = storms2[year]
         stormlength = stormlength2[year]
+        stormi = stormi2[year]
         #figure out total precip (in meters) for the year for use in the veg growth and farm yields formulae
         precip = 0.001 * (float(rain) * float(storms))
         grass.message('_____________________________\nSIMULATION YEAR: %s\n--------------------------' % now)
         #make some map names
-        fields = "%s_Year_%s_Farming_Impacts_Map" % (prfx, now)
-        outlcov = "%s_Year_%s_Landcover_Map" % (prfx, now)
-        outfert = "%s_Year_%s_Soil_Fertilty_Map" % (prfx, now)
-        outcfact = "%s_Year_%s_Cfactor_Map" % (prfx, now)
-        grazeimpacts = "%s_Year_%s_Gazing_Impacts_Map" % (prfx, now)
-        outxs = "%s_Year_%s_Rainfall_Excess_Map" % (prfx, now)
+        fields = "%s%04d_Farming_Impacts" % (prfx, now)
+        outlcov = "%s%04d_Landcover" % (prfx, now)
+        outfert = "%s%04d_Soil_Fertilty" % (prfx, now)
+        outcfact = "%s%04d_Cfactor" % (prfx, now)
+        grazeimpacts = "%s%04d_Gazing_Impacts" % (prfx, now)
+        outxs = "%s%04d_Rainfall_Excess" % (prfx, now)
         #check if this is year one, use the starting landcover and soilfertily and calculate soildepths
-        if (year + 1) == 1:
+        if now == 1:
             oldlcov = inlcov
             oldfert = infert
-            oldsdepth = "%s_Year_%s_Soil_Depth_Map" % (prfx, then)
+            oldsdepth = "%s%04d_Soil_Depth" % (prfx, then)
             grass.mapcalc("${sdepth}=(${elev}-${bdrk})", quiet ="True", sdepth = oldsdepth, elev = elev, bdrk = initbdrk)
         else:
-            oldlcov = "%s_Year_%s_Landcover_Map" % (prfx, then)
-            oldfert = "%s_Year_%s_Soil_Fertilty_Map" % (prfx, then)
-            oldsdepth = "%s_Year_%s_Soil_Depth_Map" % (prfx, then)
+            oldlcov = "%s%04d_Landcover" % (prfx, then)
+            oldfert = "%s%04d_Soil_Fertilty" % (prfx, then)
+            oldsdepth = "%s%04d_Soil_Depth" % (prfx, then)
         #GENERATE FARM IMPACTS
         #create some temp map names
         tempfields = "%stemporary_fields_map" % pid
@@ -844,9 +767,12 @@ def main():
         if tenuretype == "Maximize":
             grass.message("Land Tenure is ON, with MAXIMIZING strategy")
             #check for first year, and zero out tenure if so
-            if (year + 1) == 1:
-                tenuredfields = "%s_Year_%s_Tenured_Fields_Map" % (prfx, now)
-                grass.run_command('r.random', quiet = 'True', input = agcatch, npoints = numfields, raster = tempfields)
+            if now == 1:
+                tenuredfields = "%s%04d_Tenured_Fields" % (prfx, now)
+                if numfields == 0:
+                    grass.mapcalc("${tempfields}=0", quiet = True, tempfields = tempfields)
+                else:
+                    grass.run_command('r.random', quiet = 'True', flags="s", input = agcatch, npoints = numfields, raster = tempfields)
                 grass.run_command('g.copy', quiet = True, raster = "%s,%s" % (tempfields,tenuredfields))
                 grass.message('First year, so %s fields randomly assigned' % numfields)
                 tenuredcells = numfields
@@ -854,9 +780,9 @@ def main():
                 newcells = 0
             else:
                 #make some map names
-                oldfields = "%s_Year_%s_Farming_Impacts_Map" % (prfx, then)
-                oldtenure = "%s_Year_%s_Tenured_Fields_Map" % (prfx, then)
-                tenuredfields = "%s_Year_%s_Tenured_Fields_Map" % (prfx, now)
+                oldfields = "%s%04d_Farming_Impacts" % (prfx, then)
+                oldtenure = "%s%04d_Tenured_Fields" % (prfx, then)
+                tenuredfields = "%s%04d_Tenured_Fields" % (prfx, now)
                 tempcomparefields = "%stemporary_Old_Fields_yield_map" % pid
                 tempagcatch = "%stemporary_agricultural_catchment_map" % pid
                 grass.message('Performing yearly land tenure evaluation')
@@ -885,23 +811,26 @@ def main():
                     tenuredcells = int(float(tenuredstats['cells']) - float(tenuredstats['null_cells']))
                     #Now run r.random to get the required number of additional fields
                     tempfields1 = "%stemporary_extra_fields_map" % pid
-                    grass.run_command('r.random', quiet = 'True', input = tempagcatch, npoints = newcells, raster = tempfields1)
+                    grass.run_command('r.random', quiet = 'True', flags="s", input = tempagcatch, npoints = newcells, raster = tempfields1)
                     #patch the new fields into the old fields
                     grass.run_command('r.patch', quiet = "True", input = "%s,%s" % (tempfields1,oldtenure), output = tempfields)
                     grass.message("Keeping %s fields in tenure list, adding %s new fields" % (tenuredcells, newcells))
         elif tenuretype == "Satisfice":
             grass.message("Land Tenure is ON, with SATSFICING strategy")
             #check for first year, and zero out tenure if so
-            if (year + 1) == 1:
-                grass.run_command('r.random', quiet = 'True', input = agcatch, npoints = numfields, raster = tempfields)
+            if now == 1:
+                if numfields == 0:
+                    grass.mapcalc("${tempfields}=0", quiet = True, tempfields = tempfields)
+                else:
+                    grass.run_command('r.random', quiet = 'True', flags="s", input = agcatch, npoints = numfields, raster = tempfields)
                 grass.message('First year, so %s fields randomly assigned' % numfields)
                 tenuredcells = numfields
                 droppedcells = 0
                 newcells = 0
             else:
                 #make some map names
-                oldfields = "%s_Year_%s_Farming_Impacts_Map" % (prfx, then)
-                tenuredfields = "%s_Year_%s_Tenured_Fields_Map" % (prfx, now)
+                oldfields = "%s%04d_Farming_Impacts" % (prfx, then)
+                tenuredfields = "%s%04d_Tenured_Fields" % (prfx, now)
                 tempcomparefields = "%stemporary_Old_Fields_yield_map" % pid
                 tempagcatch = "%stemporary_agricultural_catchment_map" % pid
                 grass.message('Performing yearly land tenure evaluation')
@@ -921,14 +850,14 @@ def main():
                 if newcells <= 0: #negative number, so we need to drop some fields.
                     #Now run r.random to randomly select fields to drop
                     tempfields1 = "%stemporary_dropped_fields_map" % pid
-                    grass.run_command('r.random', quiet = 'True', input = tenuredfields, npoints = 1-newcells, raster = tempfields1)
+                    grass.run_command('r.random', quiet = 'True', flags="s", input = tenuredfields, npoints = 1-newcells, raster = tempfields1)
                     #Remove the new fields from the tenured fields map
                     grass.mapcalc("${tempfields}=if(isnull(${tenuredfields}), null(), if(isnull(${tempfields1}), 1, null()))", quiet = "True", tempfields = tempfields, tempfields1 = tempfields1, tenuredfields = tenuredfields)
                     grass.message("Dropping %s excess fields" % (1-newcells))
                 else: #positive number, so add fields
                     #Now run r.random to get the required number of additional fields
                     tempfields1 = "%stemporary_extra_fields_map" % pid
-                    grass.run_command('r.random', quiet = 'True', input = tempagcatch, npoints = newcells, raster = tempfields1)
+                    grass.run_command('r.random', quiet = 'True', flags="s", input = tempagcatch, npoints = newcells, raster = tempfields1)
                     #patch the new fields into the old fields
                     grass.run_command('r.patch', quiet = "True", input = "%s,%s" % (tempfields1,tenuredfields), output = tempfields)
                     grass.message("Adding %s new fields" % (newcells))
@@ -938,7 +867,10 @@ def main():
             droppedcells = 0
             newcells = 0
             #Now run r.random to get the required number of fields
-            grass.run_command('r.random', quiet = 'True', input = agcatch, npoints = numfields, raster = tempfields)
+            if numfields == 0:
+                    grass.mapcalc("${tempfields}=0", quiet = True, tempfields = tempfields)
+            else:
+                grass.run_command('r.random', quiet = 'True', flags="s", input = agcatch, npoints = numfields, raster = tempfields)
         #use r.surf.gaussian to cacluate fertily impacts in the farmed areas
         grass.run_command('r.surf.gauss', quiet = "True", output = tempimpacta, mean = farmimpact[0], sigma = farmimpact[1])
         grass.mapcalc("${fields}=if(isnull(${tempfields}), null(), ${tempimpacta})", quiet = "True", fields = fields, tempfields = tempfields, tempimpacta = tempimpacta)
@@ -993,7 +925,7 @@ def main():
             grass.mapcalc("${stubfod3}=(${stubfod2} / ${fieldsperhectare}) * (${tempcerealreturn}/${maxcereals})", quiet = "True", stubfod3 = stubfod3, stubfod2 = stubfod2, fieldsperhectare = fieldsperhectare, tempcerealreturn = tempcerealreturn, maxcereals = cerealstats['max'])
             stubblestats = grass.parse_command('r.univar', flags = 'ge', percentile = '90', map = stubfod3)
             #Since we grazed stubble, let's' estimate how much stubbles we got by padding the mean value to a randomly generated percentage that is drawn from a gaussian probability distribution with mu of the mean value and sigma of 0.0333. This means that the absolute max/min pad can only be up to +- %10 of the mean value (eg. at the 3-sigma level of a gaussian distribution with sigma of 0.0333), and that pad values closer to 0% will be more likely than pad values close to +- 10%. This more closely models how good people are at "educated guesses" of central tendencies (i.e., it's how people "guesstimate" the "average" value). This also ensures some variation from year to year, regardless of the "optimum" solution. Once we've done that, do we think there's still some remaining fodder needs to be grazed from wild patches? If so, how much?
-            if (float(fodderreq) - ( float(stubblestats['mean']) * numfarmcells )) < 0:
+            if (float(fodderreq) - ( float(stubblestats['mean']) * numfarmcells )) <= 0:
                 remainingfodder = 0
             else:
                 remainingfodder = float(fodderreq) - ( random.gauss(float(stubblestats['mean']), (float(stubblestats['mean']) * 0.0333)) * numfarmcells )
@@ -1019,15 +951,21 @@ def main():
             fuzzygdeficitmemory = numpy.mean(grazingmemory[slicer:])
         #Figure out how many grazing patches the agent thinks it needs based on current average patch yield
         if fuzzygyieldmemory == 0:
-            numfoddercells == 0
+            print("fuzzygyieldmemory is 0! numfoddercells broke")
         else:
-            numfoddercells = int(round(float(remainingfodder) / fuzzygyieldmemory))
+            try:
+                numfoddercells = int(round(float(remainingfodder) / fuzzygyieldmemory))
+            except:
+                numfoddercells = 0
         grass.debug("total graze patches should be %s" % numfoddercells)
         #discover how many cells to add or subtract based on agent memory of surplus or deficit
         if fuzzygyieldmemory == 0:
-            fodderpad = 0
+            print("fuzzygyieldmemory is 0! fodderpad broke.")
         else:
-            fodderpad = int(round(fuzzygdeficitmemory / fuzzygyieldmemory))
+            try:
+                fodderpad = int(round(fuzzygdeficitmemory / fuzzygyieldmemory))
+            except:
+                fodderpad = 0
         grass.debug("fodderpad (sign reversed) %s" % fodderpad)
         #add or remove the number of extra cells calculated from agent memory surplus or deficit
         numfoddercells = numfoddercells - fodderpad
@@ -1185,18 +1123,16 @@ def main():
         grass.run_command('r.colors',  quiet = True, map = outcfact, rules = cfcolors.name)
         #Run r.landscape.evol with this years' cfactor map
         grass.message('Running landscape evolution for this year....')
-        #set the prefix for r.landscape.evol output files
-        prefix = prfx + "_Year_%s_" % now
         #check if this is year one, and use the starting dem if so
-        if (year + 1) == 1:
+        if now == 1:
             inelev = elev
         else:
-            inelev = "%s_Year_%s_Elevation_Map" % (prfx, then)
-        try:
-            grass.run_command('r.landscape.evol', quiet = "True", number = 1, prefx = prefix, c = outcfact, elev = inelev, initbdrk = initbdrk, outdem = "Elevation_Map", outsoil = "Soil_Depth_Map", r = r, k = k, sdensity = sdensity, kappa = kappa, manningn = manningn, flowcontrib = outxs, cutoff1 = cutoff1, cutoff2 = cutoff2, cutoff3 = cutoff3, rain = rain, storms = storms, stormlength = stormlength, speed = speed, kt = kt, loadexp = loadexp, smoothing = smoothing, statsout = statsout, flags = ''.join(levol_flags))
-        except:
-            grass.fatal("Something is wrong with the values you sent to r.landscape.evol. Did you forget something? Check the values and try again...\nSimulation terminated with an error at time step %s" % now)
-            sys.exit(1)
+            inelev = "%s%04d_Elevation" % (prfx, then)
+        # try:            
+        grass.run_command('r.landscape.evol', quiet = "True", overwrite=True, number = 1, prefx = "%s%04d_" % (prfx, now), c = outcfact, elev = inelev, initbdrk = initbdrk, transp_eq = transp_eq, outdem = "Elevation", outsoil = "Soil_Depth", exp_m = exp_m, exp_n=exp_n, k = k, sdensity = sdensity, manningn = manningn, flowcontrib = outxs, convergence = convergence, r = r, rain = rain, storms = storms, stormlength = stormlength, stormi=stormi, statsout = statsout, flags = ''.join(levol_flags))
+        # except:
+            # grass.fatal("Something is wrong with the values you sent to r.landscape.evol. Did you forget something? Check the values and try again...\nSimulation terminated with an error at time step %s" % now)
+            # sys.exit(1)
         #delete C-factor map, unless asked to save it
         if use_flags['c'] is False:
             grass.run_command("g.remove", quiet = "True", flags = 'f', type = "rast", name = "%s,%s" %  (outcfact,outxs))
