@@ -101,16 +101,16 @@
 # %option
 # % key: exp_m
 # % type: string
-# % description: Exponent m relates to the influence of upslope area (and thus flow depth, discharge) on transport capacity. Values generally thought to scale inversely with increasing depth of flow between the two cutoff thresholds specified: "thresh1,m1,thresh2,m2"
-# % answer: 10,2,100,1
+# % description: Exponent m relates to the influence of upslope area (and thus flow depth, discharge) on transport capacity. Values scale with increasing depth of flow between the two cutoff thresholds specified: "thresh1,m1,thresh2,m2"
+# % answer: 500,1,1000,1.2
 # % required : no
 # % guisection: Landscape Evolution
 # %end
 # %option
 # % key: exp_n
 # % type: string
-# % description: Exponent n relates to the influence of local topographic slope on transport capacity. Default values set to scale inversely with increasing local slope between the two slope cutoff thresholds specified: "thresh1,n1,thresh2,n2"
-# % answer: 10,2,45,0.5
+# % description: Exponent n relates to the influence of local topographic slope on transport capacity. Values scale with increasing local slope between the two slope cutoff thresholds specified: "thresh1,n1,thresh2,n2"
+# % answer: 20,1,45,1.3
 # % required : no
 # % guisection: Landscape Evolution
 # %end
